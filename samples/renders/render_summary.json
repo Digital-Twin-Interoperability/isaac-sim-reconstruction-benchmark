@@ -1,0 +1,24 @@
+[
+  {
+    "name": "forklift_closeup",
+    "description": "Close-up of the forklift from the open floor area",
+    "camera": {
+      "position": [
+        0.5,
+        8.5,
+        2.5
+      ],
+      "target": [
+        3.2,
+        10.8,
+        0.5
+      ],
+      "fov_deg": 55.0
+    },
+    "resolution": [
+      "1024",
+      "1024"
+    ],
+    "output_dir": "samples\\renders\\forklift_closeup"
+  }
+]

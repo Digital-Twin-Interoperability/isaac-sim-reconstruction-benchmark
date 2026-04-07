@@ -1,0 +1,22 @@
+{
+  "name": "shelf_closeup",
+  "description": "Close-up of a rack bay with pallets and boxes on shelves",
+  "camera": {
+    "position": [
+      -13.0,
+      15.0,
+      3.0
+    ],
+    "target": [
+      -15.4,
+      15.0,
+      2.5
+    ],
+    "fov_deg": 50.0
+  },
+  "resolution": [
+    "1024",
+    "1024"
+  ],
+  "output_dir": "samples\\renders\\shelf_closeup"
+}

@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "asset_ids": [
+    "ConveyorBelt_A01",
+    "ConveyorBelt_A02",
+    "ConveyorBelt_A08",
+    "ConveyorBelt_A10",
+    "ConveyorBelt_A14",
+    "Shelf_A01",
+    "Shelf_A02",
+    "Pallet_A01",
+    "Pallet_A02"
+  ]
+}

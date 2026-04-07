@@ -1,0 +1,22 @@
+{
+  "name": "rack_aisle_perspective",
+  "description": "Perspective view down the left rack aisle",
+  "camera": {
+    "position": [
+      -14.5,
+      8.0,
+      4.0
+    ],
+    "target": [
+      -15.4,
+      22.0,
+      2.5
+    ],
+    "fov_deg": 60.0
+  },
+  "resolution": [
+    "1024",
+    "1024"
+  ],
+  "output_dir": "samples\\renders\\rack_aisle_perspective"
+}

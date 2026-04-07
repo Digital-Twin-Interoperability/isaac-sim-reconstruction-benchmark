@@ -1,0 +1,22 @@
+{
+  "name": "floor_area_overview",
+  "description": "Open floor area between rack sections",
+  "camera": {
+    "position": [
+      -8.0,
+      10.0,
+      5.0
+    ],
+    "target": [
+      -10.0,
+      17.0,
+      0.5
+    ],
+    "fov_deg": 65.0
+  },
+  "resolution": [
+    "1024",
+    "1024"
+  ],
+  "output_dir": "samples\\renders\\floor_area_overview"
+}
