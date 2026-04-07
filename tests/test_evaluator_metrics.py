@@ -7,7 +7,6 @@ from isaacsim_bench.evaluator.metrics.placement import compute_placement_metrics
 from isaacsim_bench.evaluator.metrics.relation import compute_relation_metrics
 from isaacsim_bench.evaluator.metrics.retrieval import compute_retrieval_metrics
 from isaacsim_bench.evaluator.metrics.scene_success import compute_scene_success
-from isaacsim_bench.evaluator.metrics.template import compute_template_metrics
 from isaacsim_bench.evaluator.runner import EvaluatorRunner
 from isaacsim_bench.schemas.prediction import (
     PredictedComponent,
@@ -72,34 +71,14 @@ def _pred_rel(from_node, to_node, from_anchor="a", to_anchor="b"):
 
 
 def _prediction(
-    components=None, relations=None, family="conveyor",
-    template="u_conveyor", abstained=False,
+    components=None, relations=None, abstained=False,
 ):
     return PredictionJSON(
         sample_id="test_001",
-        predicted_family=family,
-        predicted_template=template,
         components=components or [],
         relations=relations or [],
         abstained=abstained,
     )
-
-
-# ---- Template metrics ----
-
-class TestTemplateMetrics:
-    def test_perfect(self):
-        gt = [_scene([_comp("a", "X1")])]
-        pred = [_prediction(family="conveyor", template="u_conveyor")]
-        m = compute_template_metrics(gt, pred)
-        assert m["family_accuracy"] == 1.0
-        assert m["template_accuracy"] == 1.0
-
-    def test_wrong_family(self):
-        gt = [_scene([_comp("a", "X1")])]
-        pred = [_prediction(family="shelf", template="shelf_row")]
-        m = compute_template_metrics(gt, pred)
-        assert m["family_accuracy"] == 0.0
 
 
 # ---- Component metrics ----
@@ -248,7 +227,6 @@ class TestEvaluatorRunner:
         report = runner.evaluate(gt, pred, registry)
         d = report.to_dict()
 
-        assert d["template"]["family_accuracy"] == 1.0
         assert d["component"]["f1"] == 1.0
         assert d["relation"]["strict"]["f1"] == 1.0
         assert d["placement"]["mean_translation_error_m"] == 0.0

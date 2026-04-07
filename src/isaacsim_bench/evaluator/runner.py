@@ -12,7 +12,6 @@ from isaacsim_bench.evaluator.metrics.placement import compute_placement_metrics
 from isaacsim_bench.evaluator.metrics.relation import compute_relation_metrics
 from isaacsim_bench.evaluator.metrics.retrieval import compute_retrieval_metrics
 from isaacsim_bench.evaluator.metrics.scene_success import compute_scene_success
-from isaacsim_bench.evaluator.metrics.template import compute_template_metrics
 from isaacsim_bench.schemas.prediction import PredictionJSON
 from isaacsim_bench.schemas.scene import SceneJSON
 from isaacsim_bench.taxonomy.registry import TaxonomyRegistry
@@ -22,7 +21,6 @@ from isaacsim_bench.taxonomy.registry import TaxonomyRegistry
 class EvaluationReport:
     retrieval: dict = field(default_factory=dict)
     coverage: dict = field(default_factory=dict)
-    template: dict = field(default_factory=dict)
     component: dict = field(default_factory=dict)
     relation: dict = field(default_factory=dict)
     placement: dict = field(default_factory=dict)
@@ -31,7 +29,6 @@ class EvaluationReport:
         return {
             "retrieval": self.retrieval,
             "coverage": self.coverage,
-            "template": self.template,
             "component": {k: v for k, v in self.component.items() if k != "_matches"},
             "relation": self.relation,
             "placement": self.placement,
@@ -57,7 +54,6 @@ class EvaluatorRunner:
         report = EvaluationReport(
             retrieval=compute_retrieval_metrics(gt_scenes, pred_scenes, registry),
             coverage=compute_coverage_metrics(gt_scenes, pred_scenes),
-            template=compute_template_metrics(gt_scenes, pred_scenes),
             component=comp_metrics,
             relation=compute_relation_metrics(gt_scenes, pred_scenes, matches),
             placement=compute_placement_metrics(gt_scenes, pred_scenes, matches),

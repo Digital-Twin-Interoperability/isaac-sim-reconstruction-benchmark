@@ -79,9 +79,8 @@ def validate_sample(sample_dir: str, taxonomy: str, world_pool: str, retrieval_p
 @click.option("--taxonomy", required=True, type=click.Path(exists=True))
 @click.option("--world-pool", required=True, type=click.Path(exists=True))
 @click.option("--retrieval-pool", required=True, type=click.Path(exists=True))
-@click.option("--pred-render-dir", type=click.Path(exists=True, file_okay=False), default=None, help="Dir with re-rendered prediction scenes for render-consistency metrics")
 @click.option("--output", "-o", type=click.Path(), default=None, help="Save report to JSON")
-def evaluate(gt_dir: str, pred_dir: str, taxonomy: str, world_pool: str, retrieval_pool: str, pred_render_dir: str | None, output: str | None):
+def evaluate(gt_dir: str, pred_dir: str, taxonomy: str, world_pool: str, retrieval_pool: str, output: str | None):
     """Evaluate predictions against ground truth."""
     from isaacsim_bench.evaluator.runner import EvaluatorRunner
 
@@ -91,7 +90,6 @@ def evaluate(gt_dir: str, pred_dir: str, taxonomy: str, world_pool: str, retriev
         Path(gt_dir),
         Path(pred_dir),
         registry,
-        pred_render_dir=Path(pred_render_dir) if pred_render_dir else None,
     )
     report_dict = report.to_dict()
 

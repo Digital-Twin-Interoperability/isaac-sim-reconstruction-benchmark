@@ -18,7 +18,6 @@ def compute_scene_success(
     """End-to-end scene success rate.
 
     A scene succeeds if ALL of:
-    - correct family or template
     - component F1 >= threshold
     - relation F1 >= threshold (oracle mode)
     - mean root-relative translation error <= threshold
@@ -32,11 +31,7 @@ def compute_scene_success(
     for gt_scene, pred_scene, match in zip(gt_scenes, pred_scenes, component_matches):
         checks = {}
 
-        # 1. Family/template
-        checks["family_correct"] = gt_scene.family == pred_scene.predicted_family
-        checks["template_correct"] = gt_scene.template_id == pred_scene.predicted_template
-
-        # 2. Component F1
+        # 1. Component F1
         primary_gt = [c for c in gt_scene.components if c.evaluation_role == "primary"]
         tp = len(match.matched_pairs)
         fp = len(match.unmatched_pred)
@@ -47,7 +42,7 @@ def compute_scene_success(
         checks["component_f1"] = comp_f1
         checks["component_f1_pass"] = comp_f1 >= component_f1_threshold
 
-        # 3. Abstention check
+        # 2. Abstention check
         primary_regimes = [c.match_regime for c in primary_gt]
         scene_regime = derive_scene_regime(primary_regimes)
         is_unknown = scene_regime == "scene_unknown"
@@ -59,8 +54,7 @@ def compute_scene_success(
         # Overall success (placement and relation F1 computed externally;
         # here we check the composite with available info)
         scene_ok = (
-            (checks["family_correct"] or checks["template_correct"])
-            and checks["component_f1_pass"]
+            checks["component_f1_pass"]
             and checks["abstention_correct"]
         )
         checks["success"] = scene_ok

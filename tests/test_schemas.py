@@ -79,8 +79,6 @@ class TestPredictionJSON:
     def test_minimal(self):
         pred = PredictionJSON(
             sample_id="test_001",
-            predicted_family="conveyor",
-            predicted_template="u_conveyor",
             components=[],
             relations=[],
         )

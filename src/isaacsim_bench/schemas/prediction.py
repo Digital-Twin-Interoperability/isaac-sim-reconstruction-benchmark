@@ -22,8 +22,6 @@ class PredictedRelation(BaseModel):
 
 class PredictionJSON(BaseModel):
     sample_id: str
-    predicted_family: str
-    predicted_template: str
     components: list[PredictedComponent]
     relations: list[PredictedRelation]
     abstained: bool = False
