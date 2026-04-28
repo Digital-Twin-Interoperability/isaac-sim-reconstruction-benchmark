@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yizhan-isaacsim
+  namespace: nsf-maica
+  annotations:
+    nautilus.io/ttl: "86400"
+  labels:
+    k8s-app: yizhan-isaacsim-dep
+spec:
+  replicas: 1
+  # Pod holds a single GPU + a RWO PVC; rolling-update would deadlock waiting
+  # for the new pod to start while the old one still holds those.  Recreate
+  # tears the old pod down first.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      k8s-app: yizhan-isaacsim-dep
+  template:
+    metadata:
+      labels:
+        k8s-app: yizhan-isaacsim-dep
+    spec:
+      imagePullSecrets:
+      - name: nautilus-ngc
+      # The Isaac Sim image runs as uid/gid 1234 (isaac-sim).  Setting
+      # fsGroup makes mounted volumes (PVC, emptyDir) group-writable by
+      # that user without needing chown.
+      securityContext:
+        fsGroup: 1234
+      containers:
+      - name: exp-con
+        image: nvcr.io/nvidia/isaac-sim:5.1.0
+        # Isaac Sim's default ENTRYPOINT runs the GUI launcher; we want a
+        # long-lived pod we can exec into and run scripts in, so override.
+        command: ["bash", "-lc", "sleep infinity"]
+        volumeMounts:
+        - mountPath: /dev/shm
+          name: dshm
+        - mountPath: /workspace
+          name: workspace
+        env:
+        - name: ACCEPT_EULA
+          value: "Y"
+        - name: PRIVACY_CONSENT
+          value: "Y"
+        - name: OMNI_KIT_ALLOW_ROOT
+          value: "1"
+        # Keep working files inside /workspace so they survive only as long
+        # as the pod (ephemeral); swap to a PVC if you need persistence.
+        - name: HF_HOME
+          value: "/workspace/.cache/huggingface"
+        - name: TMPDIR
+          value: "/workspace/tmp"
+        - name: TEMP
+          value: "/workspace/tmp"
+        - name: TMP
+          value: "/workspace/tmp"
+        - name: PIP_CACHE_DIR
+          value: "/workspace/.cache/pip"
+        - name: XDG_CACHE_HOME
+          value: "/workspace/.cache"
+        resources:
+          limits:
+            memory: 24Gi
+            cpu: 2
+            # Generic GPU resource — A100 is gated behind nvidia.com/a100 on
+            # Nautilus; everything else uses nvidia.com/gpu plus an affinity
+            # match on nvidia.com/gpu.product below.
+            nvidia.com/gpu: 1
+            # Image extracts to ~30 GB; 60 Gi leaves headroom and fits on
+            # consumer-card nodes that have smaller disks.
+            ephemeral-storage: 60Gi
+          requests:
+            memory: 24Gi
+            cpu: 2
+            nvidia.com/gpu: 1
+            ephemeral-storage: 60Gi
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: "32Gi"
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: yizhan-isaacsim-workspace
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              # RTX-capable, Vulkan-1.3, non-on-demand cards on Nautilus.
+              # Drop A10 if 24 GB VRAM is too tight for your scene.
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                # Workstation/datacenter cards
+                - NVIDIA-A40
+                - NVIDIA-L40
+                - NVIDIA-L40S
+                - NVIDIA-RTX-A6000
+                - NVIDIA-RTX-A5000
+                - NVIDIA-A10
+                # Consumer RTX cards (more abundant on Nautilus, RTX-capable)
+                - NVIDIA-GeForce-RTX-3090
+                - NVIDIA-GeForce-RTX-4090

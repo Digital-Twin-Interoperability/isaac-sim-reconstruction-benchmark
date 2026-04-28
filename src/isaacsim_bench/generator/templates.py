@@ -164,7 +164,7 @@ def build_shelf_row(
     count : int, default 3
     spacing : float, default 1.5
     """
-    shelf_id = params.get("shelf_asset", "Shelf_A01")
+    shelf_id = params.get("shelf_asset", "RackShelf_01")
     count = params.get("count", 3)
     spacing = params.get("spacing", 1.5)
 
@@ -226,7 +226,7 @@ def build_pallet_grid(
     cols : int, default 3
     spacing : float, default 1.2
     """
-    pallet_id = params.get("pallet_asset", "Pallet_A01")
+    pallet_id = params.get("pallet_asset", "PaletteA_01")
     rows = params.get("rows", 2)
     cols = params.get("cols", 3)
     spacing = params.get("spacing", 1.2)

@@ -1,0 +1,314 @@
+{
+  "ConveyorBelt_A01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "anchorpoint": {
+        "position": [
+          1.494874,
+          -1.597246,
+          0.0
+        ],
+        "orient_wxyz": [
+          0.70711,
+          0.0,
+          0.0,
+          -0.707104
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "ConveyorBelt_A02": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "anchorpoint": {
+        "position": [
+          1.495851,
+          -1.596858,
+          0.0
+        ],
+        "orient_wxyz": [
+          0.707107,
+          0.0,
+          0.0,
+          -0.707107
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "ConveyorBelt_A05": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "anchorpoint": {
+        "position": [
+          2.000006,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "ConveyorBelt_A08": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "anchorpoint": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "ConveyorBelt_A10": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "anchorpoint": {
+        "position": [
+          0.0,
+          -2.9922,
+          0.0
+        ],
+        "orient_wxyz": [
+          0.0,
+          0.0,
+          0.0,
+          -1.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "ConveyorBelt_A14": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "anchorpoint": {
+        "position": [
+          0.0,
+          -3.91878,
+          0.0
+        ],
+        "orient_wxyz": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "RackShelf_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "RackFrame_03": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "PaletteA_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "pallet": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "CardBoxA_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "BarelPlastic_A_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "CratePlasticNote_A_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  }
+}

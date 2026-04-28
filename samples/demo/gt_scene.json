@@ -1,0 +1,428 @@
+{
+  "sample_id": "warehouse_demo",
+  "benchmark_tier": "closed_world",
+  "family": "warehouse",
+  "template_id": "usd_import",
+  "root_node": "SM_RackShelf_135",
+  "template_params": {},
+  "camera": {
+    "position": [
+      0.0,
+      0.0,
+      5.0
+    ],
+    "target": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "fov_deg": 60.0
+  },
+  "components": [
+    {
+      "name": "SM_RackShelf_135",
+      "asset_id": "RackShelf_01",
+      "asset_name": "RackShelf 01",
+      "family": "rack",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -15.41296142578125,
+        10.8999951171875,
+        1.299998779296875
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        -0.707106495264825,
+        0.7071070671081545
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_RackShelf_136",
+      "asset_id": "RackShelf_01",
+      "asset_name": "RackShelf 01",
+      "family": "rack",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -15.41296142578125,
+        10.8999951171875,
+        2.799998779296875
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        -0.707106495264825,
+        0.7071070671081545
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_RackShelf_137",
+      "asset_id": "RackShelf_01",
+      "asset_name": "RackShelf 01",
+      "family": "rack",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -15.41296142578125,
+        10.8999951171875,
+        4.099998779296875
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        -0.707106495264825,
+        0.7071070671081545
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_RackFrame_139",
+      "asset_id": "RackFrame_03",
+      "asset_name": "RackFrame 03",
+      "family": "rack",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -15.41296142578125,
+        12.899995117187501,
+        -1.2199999764561652e-6
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.707106852892802,
+        -0.707106709480286
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_RackFrame_140",
+      "asset_id": "RackFrame_03",
+      "asset_name": "RackFrame 03",
+      "family": "rack",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -15.41296142578125,
+        12.899995117187501,
+        2.999998779296875
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.707106852892802,
+        -0.707106709480286
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_FuseBox_24",
+      "asset_id": "FuseBox_01",
+      "asset_name": "FuseBox 01",
+      "family": "box",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        1.5,
+        30.6,
+        0.0
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.707106852892802,
+        -0.707106709480286
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_FuseBox_25",
+      "asset_id": "FuseBox_04",
+      "asset_name": "FuseBox 04",
+      "family": "box",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -0.8264089965820313,
+        30.6,
+        6.1000000000000005
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.707106852892802,
+        -0.707106709480286
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_CardBoxA_02_2",
+      "asset_id": "CardBoxA_02",
+      "asset_name": "CardBoxA 02",
+      "family": "box",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -3.08,
+        11.34,
+        0.3102484130859375
+      ],
+      "orientation_xyzw": [
+        0.7071073297295422,
+        0.0,
+        0.0,
+        -0.7071062326431273
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_CardBoxA_3",
+      "asset_id": "CardBoxA_02",
+      "asset_name": "CardBoxA 02",
+      "family": "box",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -3.08,
+        10.67,
+        0.0
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.3420206464903932,
+        0.9396924376487732
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_CardBoxD_04_6",
+      "asset_id": "CardBoxD_04",
+      "asset_name": "CardBoxD 04",
+      "family": "box",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -2.57,
+        10.21,
+        0.0
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        -0.2588197630799195,
+        0.9659256339073181
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_PaletteA_252",
+      "asset_id": "PaletteA_01",
+      "asset_name": "PaletteA 01",
+      "family": "pallet",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -15.313721923828126,
+        20.1175439453125,
+        2.7999969482421876
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.999999999999936,
+        3.5762786871356846e-7
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_PaletteA_253",
+      "asset_id": "PaletteA_01",
+      "asset_name": "PaletteA 01",
+      "family": "pallet",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -15.313721923828126,
+        18.9835009765625,
+        2.7999969482421876
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        -0.7071067336835166,
+        0.7071068286895752
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_PaletteA_257",
+      "asset_id": "PaletteA_01",
+      "asset_name": "PaletteA 01",
+      "family": "pallet",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -15.313720703125,
+        17.663374023437502,
+        2.7999969482421876
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.7071064356601271,
+        0.7071071267127991
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_BarelPlastic_C_01_25",
+      "asset_id": "BarelPlastic_C_01",
+      "asset_name": "BarelPlastic C 01",
+      "family": "barrel",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -2.2600000000000002,
+        11.13,
+        0.2116802215576172
+      ],
+      "orientation_xyzw": [
+        0.24184580362747007,
+        0.6644627137814474,
+        -0.24184583342979632,
+        0.6644625663757325
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_BarelPlastic_C_2",
+      "asset_id": "BarelPlastic_C_01",
+      "asset_name": "BarelPlastic C 01",
+      "family": "barrel",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -3.77,
+        11.5,
+        0.2116802215576172
+      ],
+      "orientation_xyzw": [
+        -0.6644621485863759,
+        0.24184713558109783,
+        0.6644621485863759,
+        0.2418472021818158
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_BottlePlasticD_01_35",
+      "asset_id": "BottlePlasticD_02",
+      "asset_name": "BottlePlasticD 02",
+      "family": "bottle",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -3.92,
+        12.4,
+        0.03057039022445679
+      ],
+      "orientation_xyzw": [
+        0.35355565368907027,
+        0.6123711539016946,
+        0.35355568349139305,
+        -0.61237108707428
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_BottlePlasticD_2",
+      "asset_id": "BottlePlasticD_01",
+      "asset_name": "BottlePlasticD 01",
+      "family": "bottle",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -2.45,
+        11.47,
+        0.03057039022445679
+      ],
+      "orientation_xyzw": [
+        0.5416768002370146,
+        0.45451758690434907,
+        0.5416768002370146,
+        -0.454517602920532
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_PushcartA_02_22",
+      "asset_id": "PushcartA_02",
+      "asset_name": "PushcartA 02",
+      "family": "vehicle",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -2.83,
+        12.85,
+        0.0
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        -0.5735767584507043,
+        0.8191518187522888
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_CratePlasticNote_B_03_18",
+      "asset_id": "CratePlasticNote_B_03",
+      "asset_name": "CratePlasticNote B 03",
+      "family": "crate",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -3.02,
+        9.790000000000001,
+        0.13662208557128908
+      ],
+      "orientation_xyzw": [
+        -0.25881938278799177,
+        0.9659257357815716,
+        1.4466800799703047e-6,
+        6.7808418862206886e-6
+      ],
+      "acceptable_proxy_family": null
+    },
+    {
+      "name": "SM_FireExtinguisher_18",
+      "asset_id": "FireExtinguisher_02",
+      "asset_name": "FireExtinguisher 02",
+      "family": "safety",
+      "evaluation_role": "primary",
+      "match_regime": "exact_match",
+      "translate": [
+        -24.8589111328125,
+        24.959423828125,
+        1.4179905700683595
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.7071068528928021,
+        0.7071067094802858
+      ],
+      "acceptable_proxy_family": null
+    }
+  ],
+  "relations": [],
+  "retrieval_pool_version": null,
+  "world_pool_version": null,
+  "taxonomy_version": "v2",
+  "generator_version": "demo"
+}

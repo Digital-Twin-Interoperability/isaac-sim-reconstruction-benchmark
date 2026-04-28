@@ -16,10 +16,15 @@ dependencies = [
     "usd-core>=26.3",
     "open-clip-torch>=3.3.0",
     "torch>=2.11.0",
+    "openai>=1.0",
 ]
 
 [project.scripts]
 isaacsim-bench = "isaacsim_bench.cli.main:cli"
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.40.0"]
+all = ["anthropic>=0.40.0"]
 
 [dependency-groups]
 dev = [

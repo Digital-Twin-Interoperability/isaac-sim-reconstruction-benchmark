@@ -12,6 +12,7 @@ from isaacsim_bench.evaluator.metrics.placement import compute_placement_metrics
 from isaacsim_bench.evaluator.metrics.relation import compute_relation_metrics
 from isaacsim_bench.evaluator.metrics.retrieval import compute_retrieval_metrics
 from isaacsim_bench.evaluator.metrics.scene_success import compute_scene_success
+from isaacsim_bench.schemas.anchors import AnchorRegistry, load_anchor_registry
 from isaacsim_bench.schemas.prediction import PredictionJSON
 from isaacsim_bench.schemas.scene import SceneJSON
 from isaacsim_bench.taxonomy.registry import TaxonomyRegistry
@@ -44,10 +45,12 @@ class EvaluatorRunner:
         gt_scenes: list[SceneJSON],
         pred_scenes: list[PredictionJSON],
         registry: TaxonomyRegistry,
+        match_mode: str = "exact",
+        anchor_registry: AnchorRegistry | None = None,
     ) -> EvaluationReport:
         # Component matching (needed by relation and placement)
         comp_metrics = compute_component_metrics(
-            gt_scenes, pred_scenes, mode="exact", registry=registry
+            gt_scenes, pred_scenes, mode=match_mode, registry=registry
         )
         matches: list[MatchResult] = comp_metrics.pop("_matches")
 
@@ -55,7 +58,10 @@ class EvaluatorRunner:
             retrieval=compute_retrieval_metrics(gt_scenes, pred_scenes, registry),
             coverage=compute_coverage_metrics(gt_scenes, pred_scenes),
             component=comp_metrics,
-            relation=compute_relation_metrics(gt_scenes, pred_scenes, matches),
+            relation=compute_relation_metrics(
+                gt_scenes, pred_scenes, matches,
+                anchor_registry=anchor_registry,
+            ),
             placement=compute_placement_metrics(gt_scenes, pred_scenes, matches),
             scene_success=compute_scene_success(gt_scenes, pred_scenes, matches),
         )
@@ -66,6 +72,7 @@ class EvaluatorRunner:
         gt_dir: Path,
         pred_dir: Path,
         registry: TaxonomyRegistry,
+        anchor_registry: AnchorRegistry | None = None,
     ) -> EvaluationReport:
         gt_scenes: list[SceneJSON] = []
         pred_scenes: list[PredictionJSON] = []
@@ -81,4 +88,20 @@ class EvaluatorRunner:
                 gt_scenes.append(scene)
                 pred_scenes.append(pred)
 
-        return self.evaluate(gt_scenes, pred_scenes, registry)
+        # Auto-load anchor registry from the standard data location when the
+        # caller didn't pass one — keeps CLI use ergonomic without forcing
+        # callers to plumb it through.
+        if anchor_registry is None:
+            data_dir = Path(__file__).resolve().parents[2].parent / "data"
+            anchors_path = data_dir / "asset_anchors.json"
+            overrides_path = data_dir / "asset_anchors_overrides.json"
+            if anchors_path.exists():
+                anchor_registry = load_anchor_registry(
+                    anchors_path,
+                    overrides_path if overrides_path.exists() else None,
+                )
+
+        return self.evaluate(
+            gt_scenes, pred_scenes, registry,
+            anchor_registry=anchor_registry,
+        )

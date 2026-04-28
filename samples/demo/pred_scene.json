@@ -1,0 +1,333 @@
+{
+  "sample_id": "warehouse_demo",
+  "predicted_family": "warehouse",
+  "predicted_template": "usd_import",
+  "components": [
+    {
+      "name": "SM_RackShelf_135",
+      "asset_id": "RackShelf_01",
+      "family": "rack",
+      "translate": [
+        -15.41296142578125,
+        10.8999951171875,
+        1.299998779296875
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        -0.707106495264825,
+        0.7071070671081545
+      ],
+      "confidence": 0.8854337715527862
+    },
+    {
+      "name": "SM_RackShelf_136",
+      "asset_id": "RackShelf_01",
+      "family": "rack",
+      "translate": [
+        -15.41296142578125,
+        10.8999951171875,
+        2.799998779296875
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        -0.707106495264825,
+        0.7071070671081545
+      ],
+      "confidence": 0.7072531190145733
+    },
+    {
+      "name": "SM_RackShelf_137",
+      "asset_id": "RackShelf_01",
+      "family": "rack",
+      "translate": [
+        -15.41296142578125,
+        10.8999951171875,
+        4.099998779296875
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        -0.707106495264825,
+        0.7071070671081545
+      ],
+      "confidence": 0.7797585023270446
+    },
+    {
+      "name": "SM_RackFrame_139",
+      "asset_id": "RackFrame_03",
+      "family": "rack",
+      "translate": [
+        -15.362961425781249,
+        12.899995117187501,
+        -1.2199999764561652e-6
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.707106852892802,
+        -0.707106709480286
+      ],
+      "confidence": 0.7647311140631585
+    },
+    {
+      "name": "SM_RackFrame_140",
+      "asset_id": "RackFrame_03",
+      "family": "rack",
+      "translate": [
+        -15.41296142578125,
+        12.899995117187501,
+        2.999998779296875
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.707106852892802,
+        -0.707106709480286
+      ],
+      "confidence": 0.9135766521075636
+    },
+    {
+      "name": "SM_FuseBox_24",
+      "asset_id": "CardBox_A1_01",
+      "family": "box",
+      "translate": [
+        1.5,
+        30.6,
+        0.0
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.707106852892802,
+        -0.707106709480286
+      ],
+      "confidence": 0.8962428513526443
+    },
+    {
+      "name": "SM_FuseBox_25",
+      "asset_id": "FuseBox_04",
+      "family": "box",
+      "translate": [
+        -0.8264089965820313,
+        30.6,
+        6.1000000000000005
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.707106852892802,
+        -0.707106709480286
+      ],
+      "confidence": 0.9587320746344051
+    },
+    {
+      "name": "SM_CardBoxA_02_2",
+      "asset_id": "CardBoxA_02",
+      "family": "box",
+      "translate": [
+        -3.08,
+        11.49,
+        0.3102484130859375
+      ],
+      "orientation_xyzw": [
+        0.7071073297295422,
+        0.0,
+        0.0,
+        -0.7071062326431273
+      ],
+      "confidence": 0.7252122614625306
+    },
+    {
+      "name": "SM_CardBoxA_3",
+      "asset_id": "CardBoxA_02",
+      "family": "box",
+      "translate": [
+        -3.08,
+        10.67,
+        0.0
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.3420206464903932,
+        0.9396924376487732
+      ],
+      "confidence": 0.8223573277087284
+    },
+    {
+      "name": "SM_CardBoxD_04_6",
+      "asset_id": "CardBoxD_04",
+      "family": "box",
+      "translate": [
+        -2.57,
+        10.21,
+        0.0
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        -0.2588197630799195,
+        0.9659256339073181
+      ],
+      "confidence": 0.7086411936370404
+    },
+    {
+      "name": "SM_PaletteA_252",
+      "asset_id": "PaletteA_01",
+      "family": "pallet",
+      "translate": [
+        -14.813721923828126,
+        20.1175439453125,
+        3.2999969482421876
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.999999999999936,
+        3.5762786871356846e-7
+      ],
+      "confidence": 0.763405012693045
+    },
+    {
+      "name": "SM_PaletteA_253",
+      "asset_id": "PaletteA_01",
+      "family": "pallet",
+      "translate": [
+        -15.313721923828126,
+        18.9835009765625,
+        2.7999969482421876
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        -0.7071067336835166,
+        0.7071068286895752
+      ],
+      "confidence": 0.8465530335499751
+    },
+    {
+      "name": "SM_PaletteA_257",
+      "asset_id": "PaletteA_01",
+      "family": "pallet",
+      "translate": [
+        -15.313720703125,
+        17.663374023437502,
+        2.7999969482421876
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.3826834323650898,
+        0.9238795325112867
+      ],
+      "confidence": 0.7076954312083205
+    },
+    {
+      "name": "SM_BarelPlastic_C_01_25",
+      "asset_id": "BarelPlastic_C_01",
+      "family": "barrel",
+      "translate": [
+        -2.2600000000000002,
+        11.13,
+        0.2116802215576172
+      ],
+      "orientation_xyzw": [
+        0.24184580362747007,
+        0.6644627137814474,
+        -0.24184583342979632,
+        0.6644625663757325
+      ],
+      "confidence": 0.757662918699128
+    },
+    {
+      "name": "SM_BarelPlastic_C_2",
+      "asset_id": "BarelPlastic_C_01",
+      "family": "barrel",
+      "translate": [
+        -3.77,
+        11.5,
+        0.2116802215576172
+      ],
+      "orientation_xyzw": [
+        -0.6644621485863759,
+        0.24184713558109783,
+        0.6644621485863759,
+        0.2418472021818158
+      ],
+      "confidence": 0.8884664869560617
+    },
+    {
+      "name": "SM_BottlePlasticD_2",
+      "asset_id": "BottlePlasticD_01",
+      "family": "bottle",
+      "translate": [
+        -2.45,
+        11.47,
+        0.03057039022445679
+      ],
+      "orientation_xyzw": [
+        0.5416768002370146,
+        0.45451758690434907,
+        0.5416768002370146,
+        -0.454517602920532
+      ],
+      "confidence": 0.8580330293749328
+    },
+    {
+      "name": "SM_PushcartA_02_22",
+      "asset_id": "PushcartA_02",
+      "family": "vehicle",
+      "translate": [
+        -2.83,
+        12.85,
+        0.0
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        -0.5735767584507043,
+        0.8191518187522888
+      ],
+      "confidence": 0.763927780391802
+    },
+    {
+      "name": "SM_FireExtinguisher_18",
+      "asset_id": "FireExtinguisher_02",
+      "family": "safety",
+      "translate": [
+        -24.8589111328125,
+        24.959423828125,
+        1.4179905700683595
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.7071068528928021,
+        0.7071067094802858
+      ],
+      "confidence": 0.8708870483240135
+    },
+    {
+      "name": "Hallucinated_Box_999",
+      "asset_id": "CardBox_A1_01",
+      "family": "box",
+      "translate": [
+        5.0,
+        5.0,
+        0.0
+      ],
+      "orientation_xyzw": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "confidence": 0.55
+    }
+  ],
+  "relations": [],
+  "abstained": false,
+  "latency_seconds": 2.34
+}

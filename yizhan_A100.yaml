@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yizhan-1a100
+  namespace: nsf-maica
+  annotations:
+    nautilus.io/ttl: "86400"
+  labels:
+    k8s-app: yizhan-dep
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: yizhan-dep
+  template:
+    metadata:
+      labels:
+        k8s-app: yizhan-dep
+    spec:
+      containers:
+      - name: exp-con
+        image: gitlab-registry.nrp-nautilus.io/prp/jupyter-stack/prp:latest
+        command: ["sh", "-c", "sleep infinity"]
+        volumeMounts:
+        - mountPath: /dev/shm
+          name: dshm
+        resources:
+          limits:
+            memory: 64Gi
+            cpu: 8
+            nvidia.com/a100: 1
+            ephemeral-storage: 150Gi
+          requests:
+            memory: 64Gi
+            cpu: 8
+            nvidia.com/a100: 1
+            ephemeral-storage: 150Gi
+        env:
+        - name: HF_HOME
+          value: "/home/jovyan/.cache/huggingface"
+        - name: NCCL_DEBUG
+          value: "WARN"
+        - name: PYTORCH_CUDA_ALLOC_CONF
+          value: "expandable_segments:True"
+        - name: TMPDIR
+          value: "/home/jovyan/tmp"
+        - name: TEMP
+          value: "/home/jovyan/tmp"
+        - name: TMP
+          value: "/home/jovyan/tmp"
+        - name: TRITON_CACHE_DIR
+          value: "/home/jovyan/.cache/triton"
+        - name: PIP_CACHE_DIR
+          value: "/home/jovyan/.cache/pip"
+        - name: XDG_CACHE_HOME
+          value: "/home/jovyan/.cache"
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: "32Gi"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                - NVIDIA-A100-SXM4-80GB
+                - NVIDIA-A100-80GB-PCIe

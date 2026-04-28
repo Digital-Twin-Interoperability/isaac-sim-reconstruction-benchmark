@@ -5,3 +5,23 @@ __pycache__/
 .pytest_cache/
 data/.clip_cache/
 *.npz
+
+# Local USD inspection cache (downloaded from Nucleus on demand)
+.usd_cache/
+
+# Isaac Sim distribution — too large for git, install separately
+isaac-sim-standalone-*
+
+# Precomputed CLIP catalog thumbnails (regeneratable via scripts/render_asset_thumbnails.py)
+data/asset_thumbnails/
+
+# Per-run agentic output artifacts
+samples/u_conveyor_default/
+data/demo_evaluation_report.json
+report.md
+
+# Slide / presentation artifacts (not source)
+agent_approaches.pdf
+slides_agent_approaches.html
+slides_agent_approaches.md
+slides_assets/

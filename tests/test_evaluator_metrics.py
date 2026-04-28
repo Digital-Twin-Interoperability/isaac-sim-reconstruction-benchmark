@@ -145,6 +145,78 @@ class TestRelationMetrics:
         assert m["strict"]["f1"] == 1.0  # relation matched
         assert m["strict"]["anchor_accuracy"] == 0.0  # but anchors wrong
 
+    def test_anchor_canonicalization_resolves_aliases(self):
+        from isaacsim_bench.schemas.anchors import (
+            AnchorPose, AnchorRegistry, AssetAnchors,
+        )
+        # GT uses alias 'right_end' on X1; pred uses raw 'anchorpoint'.
+        # Without canonicalization that's a string mismatch even though
+        # they refer to the same authored anchor.
+        registry = AnchorRegistry({
+            "X1": AssetAnchors(
+                anchors={
+                    "origin": AnchorPose(position=[0, 0, 0]),
+                    "anchorpoint": AnchorPose(position=[2, 0, 0]),
+                },
+                aliases={"right_end": "anchorpoint", "out": "anchorpoint"},
+            ),
+            "X2": AssetAnchors(
+                anchors={
+                    "origin": AnchorPose(position=[0, 0, 0]),
+                },
+                aliases={"in": "origin"},
+            ),
+        })
+        gt_comps = [_comp("a", "X1"), _comp("b", "X2")]
+        gt = [_scene(gt_comps, [_rel("a", "b", "right_end", "in")])]
+        pred = [_prediction(
+            components=[_pred_comp("a", "X1"), _pred_comp("b", "X2")],
+            relations=[_pred_rel("a", "b", "anchorpoint", "origin")],
+        )]
+        matches = [MatchResult(matched_pairs=[(0, 0), (1, 1)])]
+
+        # Without registry: anchor mismatch.
+        m_strict = compute_relation_metrics(gt, pred, matches)
+        assert m_strict["strict"]["anchor_accuracy"] == 0.0
+
+        # With registry: aliases canonicalize to same raw name.
+        m_canon = compute_relation_metrics(
+            gt, pred, matches, anchor_registry=registry,
+        )
+        assert m_canon["strict"]["anchor_accuracy"] == 1.0
+        assert m_canon["oracle_components"]["anchor_accuracy"] == 1.0
+
+    def test_anchor_canonicalization_keeps_real_mismatches(self):
+        """Different raw anchors should still score as wrong with a registry."""
+        from isaacsim_bench.schemas.anchors import (
+            AnchorPose, AnchorRegistry, AssetAnchors,
+        )
+        registry = AnchorRegistry({
+            "X1": AssetAnchors(
+                anchors={
+                    "origin": AnchorPose(position=[0, 0, 0]),
+                    "anchorpoint": AnchorPose(position=[2, 0, 0]),
+                },
+                aliases={"in": "origin", "out": "anchorpoint"},
+            ),
+            "X2": AssetAnchors(
+                anchors={"origin": AnchorPose(position=[0, 0, 0])},
+                aliases={},
+            ),
+        })
+        gt_comps = [_comp("a", "X1"), _comp("b", "X2")]
+        # GT 'out' (= anchorpoint) vs pred 'in' (= origin) — genuine mismatch.
+        gt = [_scene(gt_comps, [_rel("a", "b", "out", "origin")])]
+        pred = [_prediction(
+            components=[_pred_comp("a", "X1"), _pred_comp("b", "X2")],
+            relations=[_pred_rel("a", "b", "in", "origin")],
+        )]
+        matches = [MatchResult(matched_pairs=[(0, 0), (1, 1)])]
+        m = compute_relation_metrics(
+            gt, pred, matches, anchor_registry=registry,
+        )
+        assert m["strict"]["anchor_accuracy"] == 0.0
+
 
 # ---- Placement metrics ----
 
@@ -158,8 +230,10 @@ class TestPlacementMetrics:
         ])]
         matches = [MatchResult(matched_pairs=[(0, 0), (1, 1)])]
         m = compute_placement_metrics(gt, pred, matches)
-        assert m["mean_translation_error_m"] == 0.0
-        assert m["translation_pass_rate"] == 1.0
+        assert m["root_relative"]["mean_translation_error_m"] == 0.0
+        assert m["root_relative"]["translation_pass_rate"] == 1.0
+        assert m["procrustes_rmse_m"] == 0.0
+        assert m["pairwise_distance_mae_m"] == 0.0
 
     def test_shifted_placement(self):
         gt_comps = [_comp("a", "X1", t=[0, 0, 0]), _comp("b", "X2", t=[1, 0, 0])]
@@ -170,7 +244,21 @@ class TestPlacementMetrics:
         ])]
         matches = [MatchResult(matched_pairs=[(0, 0), (1, 1)])]
         m = compute_placement_metrics(gt, pred, matches)
-        assert m["mean_translation_error_m"] > 0
+        assert m["root_relative"]["mean_translation_error_m"] > 0
+        assert m["pairwise_distance_mae_m"] > 0
+
+    def test_global_shift_invariant(self):
+        """A globally shifted prediction should have 0 pairwise error."""
+        gt_comps = [_comp("a", "X1", t=[0, 0, 0]), _comp("b", "X2", t=[2, 0, 0])]
+        gt = [_scene(gt_comps)]
+        pred = [_prediction(components=[
+            _pred_comp("a", "X1", t=[10, 5, 0]),
+            _pred_comp("b", "X2", t=[12, 5, 0]),
+        ])]
+        matches = [MatchResult(matched_pairs=[(0, 0), (1, 1)])]
+        m = compute_placement_metrics(gt, pred, matches)
+        assert m["pairwise_distance_mae_m"] < 0.01
+        assert m["procrustes_rmse_m"] < 0.01
 
 
 # ---- Coverage metrics ----
@@ -229,5 +317,5 @@ class TestEvaluatorRunner:
 
         assert d["component"]["f1"] == 1.0
         assert d["relation"]["strict"]["f1"] == 1.0
-        assert d["placement"]["mean_translation_error_m"] == 0.0
+        assert d["placement"]["root_relative"]["mean_translation_error_m"] == 0.0
         assert d["scene_success"]["scene_success_rate"] == 1.0

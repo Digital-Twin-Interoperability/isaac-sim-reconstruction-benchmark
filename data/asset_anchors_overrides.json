@@ -1,0 +1,50 @@
+{
+  "ConveyorBelt_A01": {
+    "anchors": {},
+    "aliases": {
+      "in": "origin",
+      "out": "anchorpoint"
+    }
+  },
+  "ConveyorBelt_A02": {
+    "anchors": {},
+    "aliases": {
+      "in": "origin",
+      "out": "anchorpoint"
+    }
+  },
+  "ConveyorBelt_A05": {
+    "anchors": {},
+    "aliases": {
+      "in": "origin",
+      "out": "anchorpoint",
+      "right_end": "anchorpoint"
+    }
+  },
+  "ConveyorBelt_A08": {
+    "anchors": {
+      "anchorpoint": {"valid": false}
+    },
+    "aliases": {
+      "in": "origin"
+    }
+  },
+  "ConveyorBelt_A10": {
+    "anchors": {},
+    "aliases": {
+      "in": "origin",
+      "out": "anchorpoint",
+      "curve_exit": "origin",
+      "curve_entry": "anchorpoint"
+    }
+  },
+  "ConveyorBelt_A14": {
+    "anchors": {},
+    "aliases": {
+      "in": "origin",
+      "out": "anchorpoint",
+      "curve_exit": "origin",
+      "curve_entry": "anchorpoint"
+    }
+  }
+}
