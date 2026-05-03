@@ -760,6 +760,28 @@ class TestAlignComponents:
         }, state_with_anchors)
         assert r.is_error and "differ" in r.text
 
+    def test_rejects_same_canonical_anchor_on_both_sides(self, state_with_anchors):
+        # origin↔origin would put both pieces' start-faces at the same
+        # world point, overlapping them.  The tool should catch this.
+        self._add_two(state_with_anchors)
+        r = handle_align_components({
+            "fixed_component": "fixed", "fixed_anchor": "origin",
+            "moving_component": "moving", "moving_anchor": "origin",
+        }, state_with_anchors)
+        assert r.is_error
+        assert "same canonical anchor" in r.text or "tip-to-tail" in r.text
+
+    def test_rejects_alias_to_raw_same_canonical(self, state_with_anchors):
+        # `in` aliases `origin`; mating `in`↔`origin` is the same bug
+        # disguised by aliasing — the canonical-name check must catch it.
+        self._add_two(state_with_anchors)
+        r = handle_align_components({
+            "fixed_component": "fixed", "fixed_anchor": "in",
+            "moving_component": "moving", "moving_anchor": "origin",
+        }, state_with_anchors)
+        assert r.is_error
+        assert "canonical" in r.text
+
     def test_no_registry_fails_loudly(self, state):
         handle_add_component({
             "name": "fixed", "asset_id": "ConveyorBelt_A01", "position": [0, 0, 0],

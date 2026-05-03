@@ -31,7 +31,7 @@ spec:
         fsGroup: 1234
       containers:
       - name: exp-con
-        image: nvcr.io/nvidia/isaac-sim:5.1.0
+        image: nvcr.io/nvidia/isaac-sim:6.0.0-dev2
         # Isaac Sim's default ENTRYPOINT runs the GUI launcher; we want a
         # long-lived pod we can exec into and run scripts in, so override.
         command: ["bash", "-lc", "sleep infinity"]
@@ -105,3 +105,20 @@ spec:
                 # Consumer RTX cards (more abundant on Nautilus, RTX-capable)
                 - NVIDIA-GeForce-RTX-3090
                 - NVIDIA-GeForce-RTX-4090
+              # Hosts where Isaac Sim's renderer hangs on this driver/GPU
+              # combo — exclude specifically rather than dropping the whole
+              # GPU class:
+              #   gpu-18.nrp.mghpcc.org      A10 + driver 595 → SIGSEGV in
+              #     librtx.scenedb.plugin.so on Isaac Sim 5.1.0 startup
+              #   ry-gpu-13.sdsc.optiputer.net  RTX 3090 + driver 590.48.01 →
+              #     UsdPreviewSurfaceMonolithic shader build hangs forever
+              #     (omni.ujitso "stuck in build_start") on Isaac Sim 6.0.0-dev2
+              #   rci-tide-gpu-03.sdsu.edu      L40 + driver 590.48.01 →
+              #     cudaErrorDevicesUnavailable on torch.cuda alloc (GPU
+              #     reports 100% util, 0 procs — stale state)
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                - gpu-18.nrp.mghpcc.org
+                - ry-gpu-13.sdsc.optiputer.net
+                - rci-tide-gpu-03.sdsu.edu

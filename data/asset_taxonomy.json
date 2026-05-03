@@ -3906,6 +3906,18 @@
           "name": "ConveyorBelt A14",
           "usd_path": "Isaac/Props/Conveyors/ConveyorBelt_A14.usd",
           "semantic_class": "conveyor_curve"
+        },
+        {
+          "variant_id": "ConveyorBelt_A01",
+          "name": "ConveyorBelt A01",
+          "usd_path": "Isaac/Props/Conveyors/ConveyorBelt_A01.usd",
+          "semantic_class": "conveyor_curve"
+        },
+        {
+          "variant_id": "ConveyorBelt_A02",
+          "name": "ConveyorBelt A02",
+          "usd_path": "Isaac/Props/Conveyors/ConveyorBelt_A02.usd",
+          "semantic_class": "conveyor_curve"
         }
       ]
     },
@@ -4119,18 +4131,6 @@
       "name": "Straight Conveyor",
       "family": "conveyor",
       "variants": [
-        {
-          "variant_id": "ConveyorBelt_A01",
-          "name": "ConveyorBelt A01",
-          "usd_path": "Isaac/Props/Conveyors/ConveyorBelt_A01.usd",
-          "semantic_class": "conveyor_straight"
-        },
-        {
-          "variant_id": "ConveyorBelt_A02",
-          "name": "ConveyorBelt A02",
-          "usd_path": "Isaac/Props/Conveyors/ConveyorBelt_A02.usd",
-          "semantic_class": "conveyor_straight"
-        },
         {
           "variant_id": "ConveyorBelt_A03",
           "name": "ConveyorBelt A03",

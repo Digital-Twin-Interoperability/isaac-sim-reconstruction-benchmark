@@ -766,6 +766,29 @@ def _resolve_align_anchors(
             f"moving_anchor {moving_anchor!r} on {moving_asset_id!r} is "
             "marked INVALID — pick a different anchor or place explicitly.",
         )
+    # Tip-to-tail check: same canonical anchor on both sides means the
+    # two pieces' identical faces collide at the join, which collapses
+    # them on top of each other.  `origin` and `anchorpoint` are the two
+    # opposite faces of an asset's bed; mating must pair opposites
+    # (origin↔anchorpoint, equivalently in↔out).
+    fixed_rec = state.asset_anchors.get_record(fixed.asset_id)
+    moving_rec = state.asset_anchors.get_record(moving_asset_id)
+
+    def _canon(rec: "AssetAnchors", name: str) -> str:  # noqa: F821
+        return name if name in rec.anchors else rec.aliases.get(name, name)
+
+    fa_canon = _canon(fixed_rec, fixed_anchor)
+    ma_canon = _canon(moving_rec, moving_anchor)
+    if fa_canon == ma_canon:
+        return _err(
+            f"Anchor mating {fixed_anchor!r} ↔ {moving_anchor!r} resolves "
+            f"to the same canonical anchor {fa_canon!r} on both sides. "
+            "Anchors mate tip-to-tail: pair `origin` with `anchorpoint` "
+            "(equivalently `in` with `out`), never the same name on "
+            "both sides — `origin` and `anchorpoint` are the two opposite "
+            "faces of the asset's bed, so same-name mating collapses the "
+            "pieces onto the same face and they overlap.",
+        )
     return fa, ma
 
 
