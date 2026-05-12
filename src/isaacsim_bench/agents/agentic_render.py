@@ -18,7 +18,11 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from isaacsim_bench.agents.agentic_tools import AgentState, ToolSpec
+from isaacsim_bench.agents.agentic_tools import (
+    AgentState,
+    ToolSpec,
+    _format_inventory_status,
+)
 from isaacsim_bench.agents.composer import ComposerAgent
 from isaacsim_bench.agents.vlm import ToolResult
 from isaacsim_bench.renderer.session import IsaacRenderSession, Viewpoint
@@ -215,6 +219,11 @@ def handle_render(args: dict, state: AgentState) -> ToolResult:
     if failed:
         text_lines.append(f"  Skipped viewpoints: {failed}")
     text_lines.append("  Images are attached; compare them to the references.")
+    # Inventory rollup — surface unmatched items every render so the agent
+    # cannot lose track of what's left.  This replaces the prose-only
+    # "list remaining inventory items" guidance in the system prompt.
+    text_lines.append("")
+    text_lines.extend(_format_inventory_status(state))
 
     return ToolResult(
         tool_use_id="",

@@ -45,6 +45,26 @@ logger = logging.getLogger(__name__)
 # ----------------------------------------------------------------------------
 
 @dataclass
+class InventoryItem:
+    """One distinct physical object the agent has counted in the references.
+
+    ``matched_components`` is a list (1:N) so an inventory item like
+    "row of pallets" can be tied to multiple placed components.  An item
+    is considered satisfied for the submit gate iff this list is non-empty.
+    """
+
+    item_id: str
+    description: str
+    rough_xy: tuple[float, float] | None = None
+    matched_components: list[str] = field(default_factory=list)
+    notes: str = ""
+
+    @property
+    def matched(self) -> bool:
+        return bool(self.matched_components)
+
+
+@dataclass
 class AgentState:
     """Mutable state shared across tool calls in one agentic run."""
 
@@ -53,6 +73,15 @@ class AgentState:
     retrieval_pool_ids: set[str]
     input_image_paths: list[Path] = field(default_factory=list)
     catalog_hits: list[Any] = field(default_factory=list)  # list[CatalogHit]
+
+    # Inventory baseline — the agent's structured count of distinct objects
+    # in the reference images.  Locked by ``set_inventory`` (one-shot); after
+    # that, edits to the inventory must go through update / add / mark.
+    # The hard gate on add/modify/align edit handlers refuses to run until
+    # ``inventory_locked`` is True, so the agent can't drift into placement
+    # without first committing to a count.
+    inventory: list[InventoryItem] = field(default_factory=list)
+    inventory_locked: bool = False
 
     # Optional input-camera config (position/target/fov_deg).  Populated
     # by the reconstructor from a sibling ``scene.json``; consumed only by
@@ -166,6 +195,56 @@ def _component_index(state: AgentState) -> dict[str, int]:
     return {c.name: i for i, c in enumerate(state.prediction.components)}
 
 
+def _inventory_index(state: AgentState) -> dict[str, InventoryItem]:
+    return {item.item_id: item for item in state.inventory}
+
+
+def _check_inventory_locked(state: AgentState, op: str) -> ToolResult | None:
+    """Hard gate: refuse edits until ``set_inventory`` has been called.
+
+    The agent must commit to a count of distinct objects in the references
+    before any placement work, so the submit gate has a baseline to check
+    against.  Without this, the count drifts silently turn-to-turn.
+    """
+    if state.inventory_locked:
+        return None
+    return _err(
+        f"Cannot {op}: inventory not set.  Call `set_inventory` first with "
+        "a numbered list of every distinct physical object you can see in "
+        "the reference images, then come back to placement.",
+    )
+
+
+def _format_inventory_status(state: AgentState) -> list[str]:
+    """Render a 'matched X / total Y' rollup with per-item status lines.
+
+    Used by ``list_components`` and ``render`` so the agent never has to
+    re-derive the inventory status from prose.  Returns text lines (no
+    leading newline); caller decides where to splice them in.
+    """
+    if not state.inventory_locked:
+        return [
+            "Inventory: not set.  Call `set_inventory` first to record what "
+            "you see in the reference images.",
+        ]
+    if not state.inventory:
+        return ["Inventory: locked but empty (0 items)."]
+    total = len(state.inventory)
+    matched = sum(1 for item in state.inventory if item.matched)
+    lines = [f"Inventory status: {matched}/{total} matched"]
+    for item in state.inventory:
+        if item.matched:
+            comps = ", ".join(item.matched_components)
+            lines.append(f"  ✓ {item.item_id}  → {comps}")
+        else:
+            xy = ""
+            if item.rough_xy is not None:
+                rx, ry = item.rough_xy
+                xy = f"  rough_xy=({rx:.2f}, {ry:.2f})"
+            lines.append(f"  ✗ {item.item_id}  unmatched  ({item.description}){xy}")
+    return lines
+
+
 def _format_component(c: PredictedComponent) -> str:
     x, y, z = (round(v, 3) for v in c.translate)
     qx, qy, qz, qw = (round(v, 3) for v in c.orientation_xyzw)
@@ -173,6 +252,230 @@ def _format_component(c: PredictedComponent) -> str:
         f"- {c.name}: asset={c.asset_id} family={c.family} "
         f"pos=({x}, {y}, {z}) quat=({qx}, {qy}, {qz}, {qw}) "
         f"conf={c.confidence:.2f}"
+    )
+
+
+# ----------------------------------------------------------------------------
+# Inventory handlers
+# ----------------------------------------------------------------------------
+
+def _coerce_rough_xy(value: Any) -> tuple[float, float] | None | str:
+    """Parse an optional rough_xy field.
+
+    Returns the tuple, ``None`` if absent, or an error string if malformed.
+    Errors are returned (not raised) so handlers can wrap them in ToolResult.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, list) or len(value) != 2:
+        return "rough_xy must be a [x, y] list of 2 numbers (meters)."
+    try:
+        return (float(value[0]), float(value[1]))
+    except (TypeError, ValueError):
+        return "rough_xy entries must be numbers."
+
+
+def handle_set_inventory(args: dict, state: AgentState) -> ToolResult:
+    """Record the agent's inventory of distinct objects — one-shot.
+
+    Once committed, the inventory is locked: edits go through
+    ``update_inventory_item`` (revise existing) or ``add_inventory_item``
+    (explicit post-lock addition with a reason).  This is the trigger that
+    unlocks all the scene-edit handlers; before this call they refuse to run.
+    """
+    if state.inventory_locked:
+        return _err(
+            "Inventory is already locked.  Use `update_inventory_item` to "
+            "revise existing entries, or `add_inventory_item` to add a new "
+            "one with a reason.",
+        )
+    items_arg = args.get("items")
+    if not isinstance(items_arg, list) or not items_arg:
+        return _err(
+            "items must be a non-empty list of objects with item_id "
+            "and description fields.",
+        )
+
+    parsed: list[InventoryItem] = []
+    seen_ids: set[str] = set()
+    for i, raw in enumerate(items_arg):
+        if not isinstance(raw, dict):
+            return _err(f"items[{i}] must be an object.")
+        item_id = (raw.get("item_id") or "").strip()
+        description = (raw.get("description") or "").strip()
+        if not item_id:
+            return _err(f"items[{i}].item_id is required and must be non-empty.")
+        if not description:
+            return _err(f"items[{i}].description is required and must be non-empty.")
+        if item_id in seen_ids:
+            return _err(f"Duplicate item_id {item_id!r} at items[{i}].")
+        seen_ids.add(item_id)
+        rough_xy = _coerce_rough_xy(raw.get("rough_xy"))
+        if isinstance(rough_xy, str):
+            return _err(f"items[{i}]: {rough_xy}")
+        notes = (raw.get("notes") or "").strip()
+        parsed.append(InventoryItem(
+            item_id=item_id,
+            description=description,
+            rough_xy=rough_xy,
+            notes=notes,
+        ))
+
+    state.inventory = parsed
+    state.inventory_locked = True
+    lines = [
+        f"Inventory locked with {len(parsed)} item(s).  You can now place "
+        "components.  After placing each, call `mark_matched` to tie the "
+        "component to its inventory item.",
+    ]
+    for item in parsed:
+        lines.append(f"  - {item.item_id}: {item.description}")
+    return _ok("\n".join(lines))
+
+
+def handle_mark_matched(args: dict, state: AgentState) -> ToolResult:
+    """Tie a placed component to an inventory item (1:N, no auto-match)."""
+    if not state.inventory_locked:
+        return _err(
+            "Inventory not set.  Call `set_inventory` before mark_matched.",
+        )
+    item_id = (args.get("item_id") or "").strip()
+    component = (args.get("component") or "").strip()
+    if not item_id or not component:
+        return _err("Both item_id and component are required.")
+
+    inv_idx = _inventory_index(state)
+    if item_id not in inv_idx:
+        return _err(
+            f"Unknown item_id {item_id!r}.  Existing items: "
+            f"{sorted(inv_idx.keys())}",
+        )
+    if component not in _component_index(state):
+        return _err(
+            f"No component named {component!r}.  Place it first with "
+            "`add_component` or `add_aligned_component`.",
+        )
+    item = inv_idx[item_id]
+    if component in item.matched_components:
+        return _ok(
+            f"{component!r} is already matched to inventory item "
+            f"{item_id!r} — no change.",
+        )
+    item.matched_components.append(component)
+    return _ok(
+        f"Matched component {component!r} to inventory item {item_id!r}. "
+        f"{item_id!r} now has {len(item.matched_components)} matched "
+        "component(s).",
+    )
+
+
+def handle_unmark_matched(args: dict, state: AgentState) -> ToolResult:
+    """Remove a component link from an inventory item.
+
+    With ``component`` omitted, clears all matches for the item — useful
+    when the agent decides to redo placement for that item from scratch.
+    """
+    if not state.inventory_locked:
+        return _err("Inventory not set.")
+    item_id = (args.get("item_id") or "").strip()
+    if not item_id:
+        return _err("item_id is required.")
+    inv_idx = _inventory_index(state)
+    if item_id not in inv_idx:
+        return _err(f"Unknown item_id {item_id!r}.")
+    item = inv_idx[item_id]
+    component = (args.get("component") or "").strip()
+    if not component:
+        n = len(item.matched_components)
+        item.matched_components.clear()
+        return _ok(f"Cleared {n} match(es) from inventory item {item_id!r}.")
+    if component not in item.matched_components:
+        return _err(
+            f"Component {component!r} is not matched to {item_id!r}.",
+        )
+    item.matched_components.remove(component)
+    return _ok(
+        f"Unmatched {component!r} from inventory item {item_id!r}.",
+    )
+
+
+def handle_update_inventory_item(args: dict, state: AgentState) -> ToolResult:
+    """Revise description / rough_xy / notes of an existing inventory item."""
+    if not state.inventory_locked:
+        return _err("Inventory not set.")
+    item_id = (args.get("item_id") or "").strip()
+    if not item_id:
+        return _err("item_id is required.")
+    inv_idx = _inventory_index(state)
+    if item_id not in inv_idx:
+        return _err(f"Unknown item_id {item_id!r}.")
+    item = inv_idx[item_id]
+
+    changed: list[str] = []
+    if (description := args.get("description")) is not None:
+        description = description.strip()
+        if not description:
+            return _err("description cannot be empty.")
+        item.description = description
+        changed.append(f"description={description!r}")
+    if "rough_xy" in args:
+        rough_xy = _coerce_rough_xy(args.get("rough_xy"))
+        if isinstance(rough_xy, str):
+            return _err(rough_xy)
+        item.rough_xy = rough_xy
+        changed.append(f"rough_xy={item.rough_xy}")
+    if (notes := args.get("notes")) is not None:
+        item.notes = notes.strip()
+        changed.append(f"notes={item.notes!r}")
+
+    if not changed:
+        return _err("No fields to update provided.")
+    return _ok(f"Updated inventory item {item_id!r}: " + ", ".join(changed))
+
+
+def handle_add_inventory_item(args: dict, state: AgentState) -> ToolResult:
+    """Add a new inventory item AFTER the initial lock.
+
+    Requires ``reason`` so post-lock additions are auditable — the whole
+    point of locking is to surface drift; silent additions defeat that.
+    """
+    if not state.inventory_locked:
+        return _err(
+            "Inventory not set.  Use `set_inventory` for the initial baseline.",
+        )
+    item_id = (args.get("item_id") or "").strip()
+    description = (args.get("description") or "").strip()
+    reason = (args.get("reason") or "").strip()
+    if not item_id:
+        return _err("item_id is required.")
+    if not description:
+        return _err("description is required.")
+    if not reason:
+        return _err(
+            "reason is required for post-lock additions — explain why this "
+            "item was missed in the initial inventory.  Adding without a "
+            "reason defeats the purpose of locking the count.",
+        )
+    inv_idx = _inventory_index(state)
+    if item_id in inv_idx:
+        return _err(
+            f"Inventory item {item_id!r} already exists.  Use "
+            "`update_inventory_item` to revise it.",
+        )
+
+    rough_xy = _coerce_rough_xy(args.get("rough_xy"))
+    if isinstance(rough_xy, str):
+        return _err(rough_xy)
+
+    state.inventory.append(InventoryItem(
+        item_id=item_id,
+        description=description,
+        rough_xy=rough_xy,
+        notes=f"[post-lock] {reason}",
+    ))
+    return _ok(
+        f"Added inventory item {item_id!r} (post-lock).  Reason recorded: "
+        f"{reason!r}.  Inventory now has {len(state.inventory)} item(s).",
     )
 
 
@@ -307,7 +610,9 @@ def handle_get_catalog_hits(args: dict, state: AgentState) -> ToolResult:
 def handle_list_components(args: dict, state: AgentState) -> ToolResult:
     comps = state.prediction.components
     if not comps:
-        return _ok("Scene is empty — no components placed yet.")
+        lines = ["Scene is empty — no components placed yet."]
+        lines.extend(_format_inventory_status(state))
+        return _ok("\n".join(lines))
     lines = [f"Current scene ({len(comps)} components):"]
     for c in comps:
         lines.append(_format_component(c))
@@ -318,10 +623,14 @@ def handle_list_components(args: dict, state: AgentState) -> ToolResult:
                 f"  {r.from_node} --[{r.type}]--> {r.to_node}  "
                 f"({r.from_anchor} -> {r.to_anchor})"
             )
+    lines.append("")
+    lines.extend(_format_inventory_status(state))
     return _ok("\n".join(lines))
 
 
 def handle_add_component(args: dict, state: AgentState) -> ToolResult:
+    if (gate := _check_inventory_locked(state, "add a component")) is not None:
+        return gate
     if (gate := _check_edit_serialization(state, "added")) is not None:
         return gate
     name = args.get("name", "").strip()
@@ -377,6 +686,8 @@ def handle_add_component(args: dict, state: AgentState) -> ToolResult:
 
 
 def handle_modify_component(args: dict, state: AgentState) -> ToolResult:
+    if (gate := _check_inventory_locked(state, "modify a component")) is not None:
+        return gate
     if (gate := _check_edit_serialization(state, "modified")) is not None:
         return gate
     name = args.get("name", "").strip()
@@ -433,11 +744,25 @@ def handle_remove_component(args: dict, state: AgentState) -> ToolResult:
         r for r in state.prediction.relations
         if r.from_node != name and r.to_node != name
     ]
+    # Auto-unmatch from any inventory item — leaving stale references would
+    # let the submit gate think the item is satisfied even though its only
+    # backing component just got deleted.
+    affected: list[str] = []
+    for item in state.inventory:
+        if name in item.matched_components:
+            item.matched_components.remove(name)
+            affected.append(item.item_id)
     state.scene_modified_since_render = True
-    return _ok(
+    msg = (
         f"Removed {name!r}. Scene now has "
-        f"{len(state.prediction.components)} components.",
+        f"{len(state.prediction.components)} components."
     )
+    if affected:
+        msg += (
+            f"  Auto-unmatched from inventory item(s): {affected}.  "
+            "Re-match a replacement or these items will block submit."
+        )
+    return _ok(msg)
 
 
 def handle_add_relation(args: dict, state: AgentState) -> ToolResult:
@@ -870,6 +1195,8 @@ def handle_align_components(args: dict, state: AgentState) -> ToolResult:
     Invalid anchors are rejected loudly — silent fallback to bbox math is
     exactly what we're trying to eliminate.
     """
+    if (gate := _check_inventory_locked(state, "align components")) is not None:
+        return gate
     if (gate := _check_edit_serialization(state, "aligned")) is not None:
         return gate
 
@@ -937,6 +1264,10 @@ def handle_add_aligned_component(args: dict, state: AgentState) -> ToolResult:
     ``from_anchor=fixed_anchor``, ``to_anchor=moving_anchor`` (matches
     ``align_components``).  Counts as one edit.
     """
+    if (gate := _check_inventory_locked(
+        state, "add an aligned component",
+    )) is not None:
+        return gate
     if (gate := _check_edit_serialization(state, "added")) is not None:
         return gate
 
@@ -1023,39 +1354,45 @@ def handle_add_aligned_component(args: dict, state: AgentState) -> ToolResult:
 
 
 def handle_submit_prediction(args: dict, state: AgentState) -> ToolResult:
-    """Finalise the prediction — gated on completeness.
+    """Finalise the prediction — gated on inventory completeness.
 
-    The gate exists because the unguarded version was happy to submit the
-    first plausible asset and exit, even when the references clearly
-    contained more objects.  The model now has to:
-
-    1. Provide ``expected_components`` — the count it derived from its
-       inventory of the references.
-    2. Have actually rendered the current scene since the last edit (only
-       checked when the render tool is wired in — pure-Python callers and
-       unit tests are exempt).
-    3. Have ``expected_components == len(components)`` — unless it sets
-       ``acknowledge_unmatched=true`` and explains why in ``notes``.
+    Two structural gates beyond the render-after-edit rule:
+      1. Every inventory item must have ≥1 matched component, or be in
+         ``acknowledge_unmatched`` with notes.
+      2. Every placed component must be matched to some inventory item,
+         or be in ``acknowledge_extras`` with notes.  This catches
+         under-counting: when the agent treats a modular assembly as a
+         single inventory item, the extra pieces show up unmatched here.
     """
-    notes = args.get("notes", "").strip()
-    expected = args.get("expected_components")
-    acknowledge = bool(args.get("acknowledge_unmatched", False))
-    placed = len(state.prediction.components)
-
-    if expected is None:
+    notes = (args.get("notes") or "").strip()
+    ack_arg = args.get("acknowledge_unmatched") or []
+    if not isinstance(ack_arg, list) or not all(isinstance(s, str) for s in ack_arg):
         return _err(
-            "submit_prediction requires `expected_components` — your inventory "
-            "count of distinct objects in the references.  Re-read the "
-            "references, count, and call again with that number.",
+            "acknowledge_unmatched must be a list of inventory item_id "
+            "strings (the items you couldn't match).",
         )
-    try:
-        expected = int(expected)
-    except (TypeError, ValueError):
-        return _err("expected_components must be an integer.")
-    if expected < 1:
+    ack_set = {s.strip() for s in ack_arg if s.strip()}
+
+    extras_arg = args.get("acknowledge_extras") or []
+    if not isinstance(extras_arg, list) or not all(isinstance(s, str) for s in extras_arg):
         return _err(
-            "expected_components must be >= 1.  An empty scene cannot match a "
-            "non-empty reference set.",
+            "acknowledge_extras must be a list of component name strings "
+            "(placed components you intentionally left unmatched to any "
+            "inventory item).",
+        )
+    extras_ack_set = {s.strip() for s in extras_arg if s.strip()}
+
+    if not state.inventory_locked:
+        return _err(
+            "Cannot submit: inventory not set.  Call `set_inventory` first "
+            "with the list of distinct objects you can see in the references, "
+            "then place components and `mark_matched` each one before "
+            "submitting.",
+        )
+    if not state.inventory:
+        return _err(
+            "Cannot submit: inventory is locked but empty.  At minimum the "
+            "references must contain one distinct object.",
         )
 
     # Render-after-edit gate (only meaningful when the render tool exists).
@@ -1066,30 +1403,86 @@ def handle_submit_prediction(args: dict, state: AgentState) -> ToolResult:
             "re-submit.",
         )
 
-    if placed != expected:
-        if not acknowledge:
-            return _err(
-                f"Inventory mismatch: you said the scene has {expected} "
-                f"distinct object(s), but you've placed {placed}.  Either "
-                "place/remove components to match, or — if you've genuinely "
-                "tried and cannot find a usable asset — call again with "
-                "`acknowledge_unmatched=true` and explain in `notes` which "
-                "inventory items you couldn't match.",
-            )
-        if not notes:
-            return _err(
-                "acknowledge_unmatched=true requires `notes` to explain "
-                "which inventory items you couldn't place and why.",
-            )
+    inv_idx = _inventory_index(state)
+
+    # Validate acknowledge_unmatched references real items.
+    bad_ack = [s for s in ack_set if s not in inv_idx]
+    if bad_ack:
+        return _err(
+            f"acknowledge_unmatched references unknown inventory item_id(s): "
+            f"{bad_ack}.  Valid ids: {sorted(inv_idx.keys())}",
+        )
+
+    # Find unmatched items not covered by acknowledge_unmatched.
+    unmatched = [item.item_id for item in state.inventory if not item.matched]
+    blocking = [iid for iid in unmatched if iid not in ack_set]
+    if blocking:
+        return _err(
+            f"Cannot submit: {len(blocking)} inventory item(s) are still "
+            f"unmatched and not acknowledged: {blocking}.  Either "
+            "`mark_matched` a placed component to each, or — if you've "
+            "genuinely tried and cannot place one — pass its item_id in "
+            "`acknowledge_unmatched` along with a `notes` explanation.",
+        )
+
+    # Find placed components not matched to any inventory item.  Most common
+    # cause: agent under-counted by lumping multiple modular pieces into one
+    # inventory item (e.g. a U-conveyor as one item, then placing curve+2
+    # straights but only marking one of them).  Block by default; allow
+    # override via acknowledge_extras with notes.
+    placed = len(state.prediction.components)
+    matched_components = {
+        c
+        for item in state.inventory
+        for c in item.matched_components
+    }
+    extras = [
+        c.name for c in state.prediction.components
+        if c.name not in matched_components
+    ]
+    blocking_extras = [n for n in extras if n not in extras_ack_set]
+    if blocking_extras:
+        suggestion = ""
+        # If component count is much larger than inventory item count, this
+        # is almost certainly under-counting.  Surface the hint.
+        if len(state.inventory) > 0 and placed > 2 * len(state.inventory):
+            suggestion = (
+                "  Component count ({} placed) is much larger than inventory "
+                "count ({} items) — you likely under-counted: a modular "
+                "assembly such as a U-conveyor or a shelf row should be "
+                "ONE inventory item PER piece, not one item for the whole "
+                "assembly.  Use `add_inventory_item` to add the missing "
+                "items, then `mark_matched` each component to its own item."
+            ).format(placed, len(state.inventory))
+        return _err(
+            f"Cannot submit: {len(blocking_extras)} placed component(s) "
+            f"are not matched to any inventory item: {blocking_extras}.  "
+            "Either `mark_matched` each one (adding new inventory items via "
+            "`add_inventory_item` if your initial inventory was too coarse), "
+            "or — if you intentionally placed scaffolding that shouldn't be "
+            "tied to an inventory item — pass the component names in "
+            "`acknowledge_extras` with a `notes` explanation." + suggestion,
+        )
+
+    # If anything is acknowledged (either side), require notes.
+    if (ack_set or extras_ack_set) and not notes:
+        return _err(
+            "acknowledge_unmatched / acknowledge_extras is non-empty, so "
+            "`notes` is required — explain the rationale.",
+        )
 
     state.submitted = True
     state.submit_notes = notes
+    matched_items = sum(1 for item in state.inventory if item.matched)
     msg = (
-        f"Submitted prediction with {placed} components "
-        f"(expected {expected}). The loop will terminate after this turn."
+        f"Submitted prediction with {placed} components covering "
+        f"{matched_items}/{len(state.inventory)} inventory item(s)."
     )
-    if acknowledge and placed != expected:
-        msg += "  acknowledged_unmatched=True"
+    if ack_set:
+        msg += f"  acknowledged_unmatched={sorted(ack_set)}"
+    if extras_ack_set:
+        msg += f"  acknowledged_extras={sorted(extras_ack_set)}"
+    msg += "  The loop will terminate after this turn."
     return _ok(msg)
 
 
@@ -1115,7 +1508,151 @@ _ORIENT_SCHEMA = {
 
 def default_tool_specs() -> list[ToolSpec]:
     """The full non-render tool set for the agentic loop."""
+    _INVENTORY_ITEM_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "item_id": {
+                "type": "string",
+                "description": (
+                    "Short unique slug for this object (e.g. 'u_curve', "
+                    "'left_straight', 'pallet_back_1').  Stays stable across "
+                    "the run; you'll use it to mark_matched / acknowledge."
+                ),
+            },
+            "description": {
+                "type": "string",
+                "description": (
+                    "One-line description: what the object looks like and "
+                    "where in the scene it sits."
+                ),
+            },
+            "rough_xy": {
+                "type": "array",
+                "items": {"type": "number"},
+                "minItems": 2,
+                "maxItems": 2,
+                "description": (
+                    "Optional rough (x, y) guess in meters — purely a hint "
+                    "for the agent's own future reference."
+                ),
+            },
+            "notes": {"type": "string"},
+        },
+        "required": ["item_id", "description"],
+    }
     return [
+        ToolSpec(
+            name="set_inventory",
+            description=(
+                "Commit your inventory of distinct physical objects in the "
+                "reference images.  REQUIRED before any placement: scene-edit "
+                "tools (add_component, modify_component, align_components, "
+                "add_aligned_component) refuse to run until this is called.  "
+                "One-shot — once locked, use `update_inventory_item` or "
+                "`add_inventory_item` to revise."
+            ),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": _INVENTORY_ITEM_SCHEMA,
+                    },
+                },
+                "required": ["items"],
+            },
+            handler=handle_set_inventory,
+        ),
+        ToolSpec(
+            name="mark_matched",
+            description=(
+                "Tie a placed component to an inventory item (1:N — one "
+                "inventory item can have multiple matched components, e.g. "
+                "a 'row of pallets' item covering 3 placed pallets).  Call "
+                "after placing each component."
+            ),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "string"},
+                    "component": {"type": "string"},
+                },
+                "required": ["item_id", "component"],
+            },
+            handler=handle_mark_matched,
+        ),
+        ToolSpec(
+            name="unmark_matched",
+            description=(
+                "Remove a component link from an inventory item.  Omit "
+                "`component` to clear all matches for that item — useful "
+                "when redoing placement from scratch."
+            ),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "string"},
+                    "component": {"type": "string"},
+                },
+                "required": ["item_id"],
+            },
+            handler=handle_unmark_matched,
+        ),
+        ToolSpec(
+            name="update_inventory_item",
+            description=(
+                "Revise the description / rough_xy / notes of an existing "
+                "inventory item without re-committing the whole inventory."
+            ),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "string"},
+                    "description": {"type": "string"},
+                    "rough_xy": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "minItems": 2,
+                        "maxItems": 2,
+                    },
+                    "notes": {"type": "string"},
+                },
+                "required": ["item_id"],
+            },
+            handler=handle_update_inventory_item,
+        ),
+        ToolSpec(
+            name="add_inventory_item",
+            description=(
+                "Add a NEW inventory item after the initial lock.  Requires "
+                "a `reason` — use only when a render reveals an object you "
+                "missed in your initial inventory pass.  Silent additions "
+                "defeat the purpose of locking."
+            ),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "string"},
+                    "description": {"type": "string"},
+                    "reason": {
+                        "type": "string",
+                        "description": (
+                            "Why this item was missed in the initial "
+                            "inventory.  Will be recorded in audit trail."
+                        ),
+                    },
+                    "rough_xy": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "minItems": 2,
+                        "maxItems": 2,
+                    },
+                },
+                "required": ["item_id", "description", "reason"],
+            },
+            handler=handle_add_inventory_item,
+        ),
         ToolSpec(
             name="list_families",
             description=(
@@ -1391,46 +1928,46 @@ def default_tool_specs() -> list[ToolSpec]:
         ToolSpec(
             name="submit_prediction",
             description=(
-                "Finalise the scene reconstruction.  Gated: requires your "
-                "inventory count via `expected_components`, requires the "
-                "current scene to have been rendered since the last edit "
-                "(when the render tool is available), and requires the "
-                "placed-component count to match `expected_components` "
-                "(unless `acknowledge_unmatched=true`)."
+                "Finalise the scene reconstruction.  Gated: inventory must "
+                "be locked (via set_inventory), every inventory item must "
+                "have at least one matched component (via mark_matched) OR "
+                "be listed in `acknowledge_unmatched`, every placed "
+                "component must be matched to some inventory item OR be "
+                "listed in `acknowledge_extras`, and — when the render "
+                "tool is wired in — the current scene must have been "
+                "rendered since the last edit."
             ),
             input_schema={
                 "type": "object",
                 "properties": {
-                    "expected_components": {
-                        "type": "integer",
-                        "minimum": 1,
+                    "acknowledge_unmatched": {
+                        "type": "array",
+                        "items": {"type": "string"},
                         "description": (
-                            "Your inventory count of distinct physical "
-                            "objects in the reference images.  Must equal "
-                            "the number of components actually placed, "
-                            "unless acknowledge_unmatched=true."
+                            "List of inventory item_ids you couldn't place "
+                            "after honest effort.  These items will not "
+                            "block submit but `notes` becomes required."
                         ),
                     },
-                    "acknowledge_unmatched": {
-                        "type": "boolean",
-                        "default": False,
+                    "acknowledge_extras": {
+                        "type": "array",
+                        "items": {"type": "string"},
                         "description": (
-                            "Set to true to submit even when "
-                            "expected_components != placed count.  Use only "
-                            "after honest effort to match every inventory "
-                            "item.  Requires notes."
+                            "List of placed component names you "
+                            "intentionally left unmatched to any inventory "
+                            "item (e.g. scaffolding).  Required to bypass "
+                            "the extras gate.  `notes` becomes required."
                         ),
                     },
                     "notes": {
                         "type": "string",
                         "description": (
                             "Summary of decisions.  Required when "
-                            "acknowledge_unmatched=true; should describe "
-                            "which inventory items couldn't be placed and why."
+                            "acknowledge_unmatched or acknowledge_extras "
+                            "is non-empty; should explain the rationale."
                         ),
                     },
                 },
-                "required": ["expected_components"],
             },
             handler=handle_submit_prediction,
         ),

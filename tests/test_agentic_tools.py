@@ -13,11 +13,13 @@ from pathlib import Path
 
 from isaacsim_bench.agents.agentic_tools import (
     AgentState,
+    InventoryItem,
     ToolSpec,
     default_tool_specs,
-    handle_add_component,
-    handle_add_relation,
     handle_add_aligned_component,
+    handle_add_component,
+    handle_add_inventory_item,
+    handle_add_relation,
     handle_align_components,
     handle_get_asset_info,
     handle_get_catalog_hits,
@@ -26,10 +28,14 @@ from isaacsim_bench.agents.agentic_tools import (
     handle_list_components,
     handle_list_families,
     handle_list_references,
+    handle_mark_matched,
     handle_modify_component,
     handle_plot_top_down,
     handle_remove_component,
+    handle_set_inventory,
     handle_submit_prediction,
+    handle_unmark_matched,
+    handle_update_inventory_item,
     handle_view_reference,
 )
 from isaacsim_bench.schemas.anchors import (
@@ -40,12 +46,23 @@ from isaacsim_bench.schemas.anchors import (
 from isaacsim_bench.schemas.prediction import PredictionJSON
 
 
-def _make_state(taxonomy, pool_ids) -> AgentState:
-    return AgentState(
+def _make_state(taxonomy, pool_ids, *, lock_inventory: bool = True) -> AgentState:
+    state = AgentState(
         prediction=PredictionJSON(sample_id="test", components=[], relations=[]),
         taxonomy=taxonomy,
         retrieval_pool_ids=set(pool_ids),
     )
+    if lock_inventory:
+        # Pre-lock with a generic inventory so existing edit tests don't have
+        # to call set_inventory before every add/modify/align.  Tests that
+        # exercise the inventory gate itself pass lock_inventory=False, and
+        # TestSubmit rebuilds the inventory to match its needs.
+        state.inventory = [
+            InventoryItem(item_id="placeholder_1", description="generic"),
+            InventoryItem(item_id="placeholder_2", description="generic"),
+        ]
+        state.inventory_locked = True
+    return state
 
 
 @pytest.fixture()
@@ -53,11 +70,21 @@ def state(sample_taxonomy, sample_retrieval_pool):
     return _make_state(sample_taxonomy, sample_retrieval_pool.asset_ids)
 
 
+@pytest.fixture()
+def state_unlocked(sample_taxonomy, sample_retrieval_pool):
+    """State with no inventory committed — for testing the hard gate."""
+    return _make_state(
+        sample_taxonomy, sample_retrieval_pool.asset_ids, lock_inventory=False,
+    )
+
+
 class TestToolSpecs:
     def test_default_set_is_complete(self):
         specs = default_tool_specs()
         names = {s.name for s in specs}
         expected = {
+            "set_inventory", "mark_matched", "unmark_matched",
+            "update_inventory_item", "add_inventory_item",
             "list_families", "list_assets_in_family", "get_asset_info",
             "get_catalog_hits", "list_components", "add_component",
             "modify_component", "remove_component", "add_relation",
@@ -75,6 +102,297 @@ class TestToolSpecs:
             assert schema["name"] == spec.name
             assert isinstance(schema["input_schema"], dict)
             assert schema["input_schema"].get("type") == "object"
+
+
+class TestInventoryHardGate:
+    """Edit handlers refuse to run before set_inventory is called."""
+
+    def test_add_component_blocked_pre_lock(self, state_unlocked):
+        r = handle_add_component({
+            "name": "c", "asset_id": "ConveyorBelt_A01",
+            "position": [0, 0, 0],
+        }, state_unlocked)
+        assert r.is_error
+        assert "inventory" in r.text.lower() and "set_inventory" in r.text
+        assert state_unlocked.prediction.components == []
+
+    def test_modify_component_blocked_pre_lock(self, state_unlocked):
+        r = handle_modify_component(
+            {"name": "ghost", "position": [1, 0, 0]}, state_unlocked,
+        )
+        assert r.is_error
+        assert "inventory" in r.text.lower()
+
+    def test_align_components_blocked_pre_lock(self, state_unlocked):
+        r = handle_align_components({
+            "fixed_component": "x", "fixed_anchor": "out",
+            "moving_component": "y", "moving_anchor": "in",
+        }, state_unlocked)
+        assert r.is_error
+        assert "inventory" in r.text.lower()
+
+    def test_add_aligned_component_blocked_pre_lock(self, state_unlocked):
+        r = handle_add_aligned_component({
+            "name": "n", "asset_id": "ConveyorBelt_A01",
+            "fixed_component": "f", "fixed_anchor": "out",
+            "moving_anchor": "in",
+        }, state_unlocked)
+        assert r.is_error
+        assert "inventory" in r.text.lower()
+
+    def test_set_inventory_unlocks_edits(self, state_unlocked):
+        r = handle_set_inventory({
+            "items": [{"item_id": "c1", "description": "a conveyor"}],
+        }, state_unlocked)
+        assert not r.is_error, r.text
+        assert state_unlocked.inventory_locked is True
+        # Now edits work.
+        r = handle_add_component({
+            "name": "c", "asset_id": "ConveyorBelt_A01",
+            "position": [0, 0, 0],
+        }, state_unlocked)
+        assert not r.is_error, r.text
+        assert len(state_unlocked.prediction.components) == 1
+
+
+class TestInventoryTools:
+    def test_set_inventory_happy(self, state_unlocked):
+        r = handle_set_inventory({
+            "items": [
+                {"item_id": "u_curve", "description": "curve in middle",
+                 "rough_xy": [0.0, 0.0]},
+                {"item_id": "left_straight",
+                 "description": "feeds curve from west"},
+            ],
+        }, state_unlocked)
+        assert not r.is_error, r.text
+        assert state_unlocked.inventory_locked
+        ids = [it.item_id for it in state_unlocked.inventory]
+        assert ids == ["u_curve", "left_straight"]
+        assert state_unlocked.inventory[0].rough_xy == (0.0, 0.0)
+
+    def test_set_inventory_rejects_empty(self, state_unlocked):
+        r = handle_set_inventory({"items": []}, state_unlocked)
+        assert r.is_error and not state_unlocked.inventory_locked
+
+    def test_set_inventory_rejects_duplicate_ids(self, state_unlocked):
+        r = handle_set_inventory({
+            "items": [
+                {"item_id": "x", "description": "a"},
+                {"item_id": "x", "description": "b"},
+            ],
+        }, state_unlocked)
+        assert r.is_error and "Duplicate" in r.text
+        assert not state_unlocked.inventory_locked
+
+    def test_set_inventory_rejects_missing_fields(self, state_unlocked):
+        r = handle_set_inventory({
+            "items": [{"item_id": "x"}],  # no description
+        }, state_unlocked)
+        assert r.is_error and not state_unlocked.inventory_locked
+
+    def test_set_inventory_rejects_bad_rough_xy(self, state_unlocked):
+        r = handle_set_inventory({
+            "items": [
+                {"item_id": "x", "description": "a", "rough_xy": [1.0]},
+            ],
+        }, state_unlocked)
+        assert r.is_error and not state_unlocked.inventory_locked
+
+    def test_set_inventory_one_shot(self, state):
+        # Default fixture is already locked.
+        r = handle_set_inventory({
+            "items": [{"item_id": "y", "description": "another"}],
+        }, state)
+        assert r.is_error
+        assert "already locked" in r.text.lower()
+
+    def test_mark_matched_happy(self, state):
+        handle_add_component({
+            "name": "comp_a", "asset_id": "ConveyorBelt_A01",
+            "position": [0, 0, 0],
+        }, state)
+        r = handle_mark_matched(
+            {"item_id": "placeholder_1", "component": "comp_a"}, state,
+        )
+        assert not r.is_error, r.text
+        item = next(
+            i for i in state.inventory if i.item_id == "placeholder_1"
+        )
+        assert item.matched_components == ["comp_a"]
+        assert item.matched is True
+
+    def test_mark_matched_one_to_many(self, state):
+        # 1:N — same inventory item, multiple components.
+        for i in range(3):
+            handle_add_component({
+                "name": f"box_{i}", "asset_id": "ConveyorBelt_A01",
+                "position": [float(i), 0, 0],
+            }, state)
+            handle_mark_matched(
+                {"item_id": "placeholder_1", "component": f"box_{i}"}, state,
+            )
+        item = next(
+            i for i in state.inventory if i.item_id == "placeholder_1"
+        )
+        assert item.matched_components == ["box_0", "box_1", "box_2"]
+
+    def test_mark_matched_idempotent(self, state):
+        handle_add_component({
+            "name": "c", "asset_id": "ConveyorBelt_A01", "position": [0, 0, 0],
+        }, state)
+        handle_mark_matched(
+            {"item_id": "placeholder_1", "component": "c"}, state,
+        )
+        r = handle_mark_matched(
+            {"item_id": "placeholder_1", "component": "c"}, state,
+        )
+        assert not r.is_error
+        assert "already matched" in r.text.lower()
+        item = next(i for i in state.inventory if i.item_id == "placeholder_1")
+        assert item.matched_components == ["c"]  # not duplicated
+
+    def test_mark_matched_unknown_item(self, state):
+        handle_add_component({
+            "name": "c", "asset_id": "ConveyorBelt_A01", "position": [0, 0, 0],
+        }, state)
+        r = handle_mark_matched(
+            {"item_id": "ghost", "component": "c"}, state,
+        )
+        assert r.is_error and "ghost" in r.text
+
+    def test_mark_matched_unknown_component(self, state):
+        r = handle_mark_matched(
+            {"item_id": "placeholder_1", "component": "ghost"}, state,
+        )
+        assert r.is_error and "ghost" in r.text
+
+    def test_unmark_matched_specific(self, state):
+        handle_add_component({
+            "name": "a", "asset_id": "ConveyorBelt_A01", "position": [0, 0, 0],
+        }, state)
+        handle_mark_matched(
+            {"item_id": "placeholder_1", "component": "a"}, state,
+        )
+        r = handle_unmark_matched(
+            {"item_id": "placeholder_1", "component": "a"}, state,
+        )
+        assert not r.is_error
+        item = next(i for i in state.inventory if i.item_id == "placeholder_1")
+        assert item.matched_components == []
+
+    def test_unmark_matched_clear_all(self, state):
+        for i in range(2):
+            handle_add_component({
+                "name": f"c{i}", "asset_id": "ConveyorBelt_A01",
+                "position": [float(i), 0, 0],
+            }, state)
+            handle_mark_matched(
+                {"item_id": "placeholder_1", "component": f"c{i}"}, state,
+            )
+        r = handle_unmark_matched({"item_id": "placeholder_1"}, state)
+        assert not r.is_error
+        item = next(i for i in state.inventory if i.item_id == "placeholder_1")
+        assert item.matched_components == []
+
+    def test_remove_component_auto_unmatches(self, state):
+        handle_add_component({
+            "name": "doomed", "asset_id": "ConveyorBelt_A01",
+            "position": [0, 0, 0],
+        }, state)
+        handle_mark_matched(
+            {"item_id": "placeholder_1", "component": "doomed"}, state,
+        )
+        state.scene_modified_since_render = False
+        r = handle_remove_component({"name": "doomed"}, state)
+        assert not r.is_error
+        assert "Auto-unmatched" in r.text
+        assert "placeholder_1" in r.text
+        item = next(i for i in state.inventory if i.item_id == "placeholder_1")
+        assert item.matched_components == []
+
+    def test_update_inventory_item(self, state):
+        r = handle_update_inventory_item({
+            "item_id": "placeholder_1",
+            "description": "more specific",
+            "rough_xy": [3.0, 2.0],
+        }, state)
+        assert not r.is_error
+        item = next(i for i in state.inventory if i.item_id == "placeholder_1")
+        assert item.description == "more specific"
+        assert item.rough_xy == (3.0, 2.0)
+
+    def test_update_inventory_item_unknown(self, state):
+        r = handle_update_inventory_item(
+            {"item_id": "ghost", "description": "x"}, state,
+        )
+        assert r.is_error
+
+    def test_update_inventory_item_no_fields(self, state):
+        r = handle_update_inventory_item({"item_id": "placeholder_1"}, state)
+        assert r.is_error
+
+    def test_add_inventory_item_post_lock(self, state):
+        r = handle_add_inventory_item({
+            "item_id": "missed_box",
+            "description": "found this in turn-7 render",
+            "reason": "render revealed an extra pallet I missed initially",
+        }, state)
+        assert not r.is_error, r.text
+        ids = [i.item_id for i in state.inventory]
+        assert "missed_box" in ids
+        item = next(i for i in state.inventory if i.item_id == "missed_box")
+        assert "post-lock" in item.notes
+        assert "missed initially" in item.notes
+
+    def test_add_inventory_item_requires_reason(self, state):
+        r = handle_add_inventory_item({
+            "item_id": "x", "description": "y",
+        }, state)
+        assert r.is_error
+        assert "reason" in r.text.lower()
+
+    def test_add_inventory_item_rejects_duplicate(self, state):
+        r = handle_add_inventory_item({
+            "item_id": "placeholder_1",
+            "description": "duplicate of existing",
+            "reason": "test",
+        }, state)
+        assert r.is_error and "already exists" in r.text
+
+    def test_add_inventory_item_pre_lock(self, state_unlocked):
+        r = handle_add_inventory_item({
+            "item_id": "x", "description": "y", "reason": "z",
+        }, state_unlocked)
+        assert r.is_error
+        assert "set_inventory" in r.text.lower()
+
+
+class TestInventoryStatusInListComponents:
+    def test_status_appears_when_unlocked(self, state_unlocked):
+        r = handle_list_components({}, state_unlocked)
+        assert not r.is_error
+        assert "not set" in r.text.lower()
+        assert "set_inventory" in r.text
+
+    def test_status_appears_when_empty(self, state_unlocked):
+        # Lock with empty inventory by mutating state directly
+        # (set_inventory rejects empty, but we want to test the formatter).
+        state_unlocked.inventory_locked = True
+        r = handle_list_components({}, state_unlocked)
+        assert "0 items" in r.text or "empty" in r.text
+
+    def test_status_shows_matched_and_unmatched(self, state):
+        handle_add_component({
+            "name": "c", "asset_id": "ConveyorBelt_A01", "position": [0, 0, 0],
+        }, state)
+        handle_mark_matched(
+            {"item_id": "placeholder_1", "component": "c"}, state,
+        )
+        r = handle_list_components({}, state)
+        assert "1/2 matched" in r.text
+        assert "✓ placeholder_1" in r.text
+        assert "✗ placeholder_2" in r.text
 
 
 class TestInspectionTools:
@@ -313,89 +631,187 @@ class TestSystemPrompt:
 
 
 class TestSubmit:
-    def _place_n(self, state, n: int) -> None:
-        for i in range(n):
+    """Submit gate is now driven by inventory matching, not an integer count."""
+
+    def _place_and_match(self, state, item_ids: list[str]) -> None:
+        """Place one component per inventory id and mark each matched."""
+        for i, iid in enumerate(item_ids):
             handle_add_component({
-                "name": f"c{i}",
+                "name": f"c_{iid}",
                 "asset_id": "ConveyorBelt_A01",
                 "position": [float(i), 0, 0],
             }, state)
+            handle_mark_matched(
+                {"item_id": iid, "component": f"c_{iid}"}, state,
+            )
         # Pretend a render happened so the render-after-edit gate doesn't
-        # fire.  In the unit-test fixture state.renderer is None anyway, so
-        # the gate is bypassed; this just defensively documents intent.
+        # fire.  state.renderer is None in the fixture so the gate is
+        # bypassed anyway; this defensively documents intent.
         state.scene_modified_since_render = False
 
-    def test_submit_requires_expected_components(self, state):
-        self._place_n(state, 1)
-        r = handle_submit_prediction({"notes": "done"}, state)
+    def test_submit_requires_inventory_locked(self, state_unlocked):
+        # No set_inventory call — the gate must reject.
+        r = handle_submit_prediction({}, state_unlocked)
         assert r.is_error
-        assert "expected_components" in r.text
-        assert state.submitted is False
+        assert "inventory" in r.text.lower()
+        assert state_unlocked.submitted is False
 
-    def test_submit_rejects_count_mismatch(self, state):
-        self._place_n(state, 1)
-        r = handle_submit_prediction({"expected_components": 3}, state)
+    def test_submit_rejects_unmatched_items(self, state):
+        # Default fixture inventory has placeholder_1, placeholder_2.
+        # Place a component but mark NEITHER inventory item.
+        handle_add_component({
+            "name": "c0", "asset_id": "ConveyorBelt_A01",
+            "position": [0, 0, 0],
+        }, state)
+        state.scene_modified_since_render = False
+        r = handle_submit_prediction({}, state)
         assert r.is_error
-        assert "Inventory mismatch" in r.text
+        assert "unmatched" in r.text.lower()
+        assert "placeholder_1" in r.text or "placeholder_2" in r.text
         assert state.submitted is False
 
     def test_submit_happy_path(self, state):
-        self._place_n(state, 2)
-        r = handle_submit_prediction(
-            {"expected_components": 2, "notes": "done"}, state,
-        )
-        assert not r.is_error
+        self._place_and_match(state, ["placeholder_1", "placeholder_2"])
+        r = handle_submit_prediction({"notes": "done"}, state)
+        assert not r.is_error, r.text
         assert state.submitted is True
         assert state.submit_notes == "done"
 
     def test_submit_acknowledge_unmatched_requires_notes(self, state):
-        self._place_n(state, 1)
         r = handle_submit_prediction({
-            "expected_components": 3,
-            "acknowledge_unmatched": True,
+            "acknowledge_unmatched": ["placeholder_1", "placeholder_2"],
         }, state)
         assert r.is_error
         assert "notes" in r.text.lower()
         assert state.submitted is False
 
     def test_submit_acknowledge_unmatched_succeeds(self, state):
-        self._place_n(state, 1)
         r = handle_submit_prediction({
-            "expected_components": 3,
-            "acknowledge_unmatched": True,
-            "notes": "two straights not in pool",
+            "acknowledge_unmatched": ["placeholder_1", "placeholder_2"],
+            "notes": "neither object in pool",
         }, state)
-        assert not r.is_error
+        assert not r.is_error, r.text
         assert state.submitted is True
 
-    def test_submit_rejects_zero_expected(self, state):
-        self._place_n(state, 1)
-        r = handle_submit_prediction({"expected_components": 0}, state)
+    def test_submit_rejects_unknown_acknowledge_id(self, state):
+        # Match one item, acknowledge a nonexistent id.
+        self._place_and_match(state, ["placeholder_1"])
+        r = handle_submit_prediction({
+            "acknowledge_unmatched": ["ghost_item"],
+            "notes": "...",
+        }, state)
         assert r.is_error
+        assert "ghost_item" in r.text
+        assert state.submitted is False
+
+    def test_submit_rejects_acknowledge_non_list(self, state):
+        self._place_and_match(state, ["placeholder_1", "placeholder_2"])
+        r = handle_submit_prediction({
+            "acknowledge_unmatched": True,  # old-style boolean
+        }, state)
+        assert r.is_error
+        assert "list" in r.text.lower()
+        assert state.submitted is False
+
+    def test_submit_rejects_locked_but_empty_inventory(self, state):
+        state.inventory.clear()  # locked but empty
+        r = handle_submit_prediction({}, state)
+        assert r.is_error
+        assert "empty" in r.text.lower()
         assert state.submitted is False
 
     def test_submit_rejects_when_scene_modified_since_render(self, state):
         # Simulate render tool wired in via a sentinel renderer object.
         state.renderer = object()
-        self._place_n(state, 1)
-        # Mark scene as modified after the synthetic render (place_n cleared
-        # it).  This is what would happen if the agent edited then tried
-        # to submit without re-rendering.
+        self._place_and_match(state, ["placeholder_1", "placeholder_2"])
+        # Mark scene as modified after the synthetic render.
         state.scene_modified_since_render = True
-        r = handle_submit_prediction({"expected_components": 1}, state)
+        r = handle_submit_prediction({}, state)
         assert r.is_error
         assert "render" in r.text.lower()
         assert state.submitted is False
 
     def test_submit_render_gate_skipped_without_renderer(self, state):
-        # state.renderer is None in the fixture — render gate must not
-        # fire.  Mismatched flag should not block submit.
         state.renderer = None
-        self._place_n(state, 1)
+        self._place_and_match(state, ["placeholder_1", "placeholder_2"])
         state.scene_modified_since_render = True
-        r = handle_submit_prediction({"expected_components": 1}, state)
+        r = handle_submit_prediction({}, state)
         assert not r.is_error
         assert state.submitted is True
+
+    def test_submit_blocks_on_extra_unmatched_component(self, state):
+        self._place_and_match(state, ["placeholder_1", "placeholder_2"])
+        # Add an extra component, leave it unmatched to any inventory item.
+        handle_add_component({
+            "name": "extra_c",
+            "asset_id": "ConveyorBelt_A02",
+            "position": [10, 0, 0],
+        }, state)
+        state.scene_modified_since_render = False
+        r = handle_submit_prediction({}, state)
+        assert r.is_error
+        assert "extra_c" in r.text
+        assert "not matched" in r.text.lower()
+        assert state.submitted is False
+
+    def test_submit_acknowledge_extras_succeeds(self, state):
+        self._place_and_match(state, ["placeholder_1", "placeholder_2"])
+        handle_add_component({
+            "name": "scaffold",
+            "asset_id": "ConveyorBelt_A02",
+            "position": [10, 0, 0],
+        }, state)
+        state.scene_modified_since_render = False
+        r = handle_submit_prediction({
+            "acknowledge_extras": ["scaffold"],
+            "notes": "intentional scaffolding",
+        }, state)
+        assert not r.is_error, r.text
+        assert state.submitted is True
+
+    def test_submit_acknowledge_extras_requires_notes(self, state):
+        self._place_and_match(state, ["placeholder_1", "placeholder_2"])
+        handle_add_component({
+            "name": "scaffold",
+            "asset_id": "ConveyorBelt_A02",
+            "position": [10, 0, 0],
+        }, state)
+        state.scene_modified_since_render = False
+        r = handle_submit_prediction({
+            "acknowledge_extras": ["scaffold"],
+        }, state)
+        assert r.is_error
+        assert "notes" in r.text.lower()
+        assert state.submitted is False
+
+    def test_submit_extras_gate_surfaces_undercount_hint(self, state):
+        # Lock with 1 item; place 3 components, mark only 1.  This is the
+        # exact pattern from the v14 smoke test that motivated the gate.
+        state.inventory = [InventoryItem(item_id="u_assembly", description="the whole U")]
+        for i in range(3):
+            handle_add_component({
+                "name": f"p{i}", "asset_id": "ConveyorBelt_A01",
+                "position": [float(i), 0, 0],
+            }, state)
+        handle_mark_matched(
+            {"item_id": "u_assembly", "component": "p0"}, state,
+        )
+        state.scene_modified_since_render = False
+        r = handle_submit_prediction({}, state)
+        assert r.is_error
+        # The dedicated under-counting hint should fire (placed=3, items=1).
+        assert "under-counted" in r.text.lower()
+        assert "add_inventory_item" in r.text
+        assert state.submitted is False
+
+    def test_submit_rejects_extras_non_list(self, state):
+        self._place_and_match(state, ["placeholder_1", "placeholder_2"])
+        r = handle_submit_prediction({
+            "acknowledge_extras": "p1",  # str, not list
+        }, state)
+        assert r.is_error
+        assert "list" in r.text.lower()
+        assert state.submitted is False
 
 
 class TestPlotTopDown:
