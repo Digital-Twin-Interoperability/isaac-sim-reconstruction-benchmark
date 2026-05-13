@@ -26,6 +26,12 @@ Without bbox-min/max the agent only knows asset size, not where its
 "connection points" land — which is what lets it chain modular pieces
 end-to-end correctly.
 
+**Incremental by default.** Loads any existing ``asset_extents.json``,
+computes the set of variant_ids missing from it, and only boots Isaac Sim
+to process the missing ones.  If everything is covered, exits before
+booting (which is the expensive part).  Pass ``--force`` to recompute
+every entry.
+
 Run on the pod with Isaac Sim's bundled python:
 
     /isaac-sim/python.sh scripts/compute_asset_extents.py
@@ -33,6 +39,7 @@ Run on the pod with Isaac Sim's bundled python:
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -52,18 +59,59 @@ OUT_PATH = DATA_DIR / "asset_extents.json"
 LOAD_FRAMES = 60
 
 
+def _parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        description="Compute bbox metadata for retrieval-pool assets",
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Recompute every variant, even those already in "
+            "data/asset_extents.json (default: skip already-computed)."
+        ),
+    )
+    return p.parse_args()
+
+
 def main() -> None:
+    args = _parse_args()
+
+    pool_ids: list[str] = json.loads(POOL_PATH.read_text())["asset_ids"]
+
+    existing: dict[str, dict[str, list[float]]] = {}
+    if OUT_PATH.exists() and not args.force:
+        try:
+            existing = json.loads(OUT_PATH.read_text())
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"  [warn] failed to read {OUT_PATH.name} ({e}); recomputing all")
+            existing = {}
+
+    missing = [vid for vid in pool_ids if vid not in existing]
+    if not missing:
+        print(
+            f"All {len(pool_ids)} pool variant(s) already in "
+            f"{OUT_PATH.name}; nothing to do.  Pass --force to recompute.",
+        )
+        return
+
+    print(
+        f"Pool has {len(pool_ids)} variant(s); "
+        f"{len(existing)} already computed, {len(missing)} missing.  "
+        "Booting Isaac Sim to fill the gap...",
+    )
+
+    # Heavy import — only reached when there's actually work to do.
     from isaacsim import SimulationApp
 
     app = SimulationApp({"headless": True})
 
     # Imports valid only once SimulationApp has booted.
-    from pxr import Gf, Usd, UsdGeom
+    from pxr import Usd, UsdGeom
 
     from isaacsim_bench.schemas.taxonomy import AssetTaxonomy
 
     taxonomy = AssetTaxonomy.model_validate_json(TAX_PATH.read_text())
-    pool_ids: list[str] = json.loads(POOL_PATH.read_text())["asset_ids"]
 
     variant_index: dict[str, str] = {}
     for cat in taxonomy.categories:
@@ -71,12 +119,9 @@ def main() -> None:
             if var.usd_path:
                 variant_index[var.variant_id] = var.usd_path
 
-    # Always recompute — schema changed (now keyed by variant -> dict instead
-    # of variant -> list).  Loading the old format and trying to "resume"
-    # would mix shapes silently.
-    extents: dict[str, dict[str, list[float]]] = {}
+    extents = dict(existing)  # start from existing so we never drop entries
 
-    for vid in pool_ids:
+    for vid in missing:
         usd_rel = variant_index.get(vid)
         if not usd_rel:
             print(f"  [warn] {vid}: no usd_path in taxonomy")
@@ -128,7 +173,10 @@ def main() -> None:
         OUT_PATH.write_text(json.dumps(extents, indent=2))
 
     OUT_PATH.write_text(json.dumps(extents, indent=2))
-    print(f"\nWrote bbox metadata for {len(extents)} assets to {OUT_PATH}")
+    print(
+        f"\nWrote bbox metadata for {len(extents)} assets to {OUT_PATH} "
+        f"({len(missing)} newly computed).",
+    )
     app.close()
 
 

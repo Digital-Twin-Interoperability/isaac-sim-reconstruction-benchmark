@@ -310,5 +310,833 @@
       }
     },
     "aliases": {}
+  },
+  "CardBoxA_02": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "CardBoxB_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "CardBoxB_02": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "CardBoxC_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "CardBoxC_02": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "CardBoxD_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "CardBoxD_03": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "CardBoxD_04": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "CardBoxD_05": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "packing_table": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "Crate_A07_Yellow_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "Crate_A07_01_1": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "Crate_A08_Blue_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "HeavyDutyPackingTable_C02_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "container_h20": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "container_h20_base": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "container_h20_inst": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "container_h20_inst_base": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b04_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b04_white_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b07_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b08_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b09_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b09_white_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b10_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b10_white_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b12_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b13_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b17_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b19_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b19_white_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b20_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b20_white_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b21_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b21_white_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b22_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b22_white_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b25_white_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b26_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b26_white_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b28_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b28_white_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b33_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b33_white_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "sm_whitecorrugatedbox_b35_brown_01": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
+  },
+  "CardBoxD_02": {
+    "anchors": {
+      "origin": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "orient_wxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "aliases": {}
   }
 }

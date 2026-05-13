@@ -7,21 +7,32 @@
 # - Pipes the OpenAI key from the `openai-key` k8s secret into the pod over
 #   stdin (never lands on local disk).
 # - Idempotently installs the bundled-python deps that Isaac's image lacks.
+# - **Preflight asset-metadata refresh**: compute_asset_extents.py +
+#   extract_anchors.py both run in incremental mode — they no-op when the
+#   pool is fully covered, otherwise compute only the new variants and pull
+#   the updated JSON back so the agent has bbox/anchor data on every run.
 # - Runs reconstruct_scene.py with --agent agentic --enable-render-tool.
 # - Moves prediction.json/usd, agentic_trace.json, agentic_run.log into a
 #   versioned dir on the pod, then `kubectl cp`s back to local.
 # - Optionally pulls the mid-loop render snapshots from /tmp on the pod.
 #
-# Usage:   RUNDIR=agentic_run_v9 bash scripts/run_pod_agentic.sh
-# Default: RUNDIR=agentic_run_v9 (bump per version so prior runs are preserved).
+# Usage:
+#     RUNDIR=agentic_run_v10 bash scripts/run_pod_agentic.sh
+#     SAMPLE=samples/packing_table RUNDIR=agentic_run_v1 bash scripts/run_pod_agentic.sh
+#
+# Env knobs (all optional):
+#     SAMPLE     sample dir under the repo (default samples/u_conveyor_default)
+#     RUNDIR    subdir name for this run's artifacts (default agentic_run_v10)
+#     LOCAL_REPO  local repo path to sync from (default $PWD)
+#     SKIP_METADATA  set non-empty to skip the extents+anchors preflight
 
 set -uo pipefail
 
 NS=nsf-maica
 LABEL=k8s-app=yizhan-isaacsim-dep
-SAMPLE=samples/u_conveyor_default
-RUNDIR=${RUNDIR:-agentic_run_v9}
-LOCAL_REPO=${LOCAL_REPO:-/mnt/d/dev/Isaac_Sim_Scene}
+SAMPLE=${SAMPLE:-samples/u_conveyor_default}
+RUNDIR=${RUNDIR:-agentic_run_v10}
+LOCAL_REPO=${LOCAL_REPO:-$PWD}
 
 step() { echo "[$(date +%H:%M:%S)] $*"; }
 
@@ -60,6 +71,30 @@ kubectl get secret openai-key -n "$NS" -o jsonpath='{.data.OPENAI_API_KEY}' | ba
 step "ensuring openai/open-clip-torch/click in /isaac-sim/python.sh..."
 kubectl exec -n "$NS" "$POD" -- /isaac-sim/python.sh -m pip install -q \
   "openai==1.99.9" open-clip-torch click 2>&1 | tail -3 || true
+
+# 5b. preflight asset-metadata refresh.  Both scripts are incremental: they
+# load existing JSON, compute only what's missing relative to the current
+# retrieval pool, and no-op when fully covered.  Run extents on the pod
+# (needs Isaac Sim's USD resolver to fetch from S3); run anchors locally
+# (uses usd-core, fast).  Skip with SKIP_METADATA=1.
+if [ -z "${SKIP_METADATA:-}" ]; then
+  step "preflight: compute_asset_extents.py (incremental, on pod)..."
+  kubectl exec -n "$NS" "$POD" -- bash -c "
+    cd $REPO
+    /isaac-sim/python.sh scripts/compute_asset_extents.py 2>&1 | tail -20
+  "
+  step "pulling updated data/asset_extents.json back..."
+  kubectl cp "$NS/$POD:$REPO/data/asset_extents.json" \
+    "$LOCAL_REPO/data/asset_extents.json" 2>/dev/null || true
+
+  step "preflight: extract_anchors.py (incremental, local)..."
+  ( cd "$LOCAL_REPO" && uv run python scripts/extract_anchors.py 2>&1 | tail -10 )
+  step "pushing updated data/asset_anchors.json to pod..."
+  kubectl cp "$LOCAL_REPO/data/asset_anchors.json" \
+    "$NS/$POD:$REPO/data/asset_anchors.json" 2>/dev/null || true
+else
+  step "preflight skipped (SKIP_METADATA set)"
+fi
 
 # 6. run agentic with render
 step "launching agentic loop -> $SAMPLE/$RUNDIR..."

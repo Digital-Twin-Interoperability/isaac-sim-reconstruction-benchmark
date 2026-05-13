@@ -22,6 +22,11 @@ overrides can layer on top without re-running this extractor losing them::
       }
     }
 
+**Incremental by default.**  Loads any existing ``asset_anchors.json``
+and only inspects variant_ids missing from it.  If the pool is fully
+covered, exits immediately (no USD downloads).  Pass ``--force`` to
+re-extract every entry.
+
 This script does NOT need Isaac Sim — it uses ``usd-core`` only.  Run with
 the project venv::
 
@@ -30,6 +35,7 @@ the project venv::
 
 from __future__ import annotations
 
+import argparse
 import json
 import urllib.request
 from pathlib import Path
@@ -85,8 +91,46 @@ def _read_anchorpoint(stage: Usd.Stage) -> dict | None:
     return {"position": pos, "orient_wxyz": wxyz}
 
 
+def _parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        description="Extract /World/Anchorpoint frames for retrieval-pool assets",
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Re-extract every variant, even those already in "
+            "data/asset_anchors.json (default: skip already-extracted)."
+        ),
+    )
+    return p.parse_args()
+
+
 def main() -> None:
+    args = _parse_args()
     pool_ids: list[str] = json.loads(POOL_PATH.read_text())["asset_ids"]
+
+    existing: dict[str, dict] = {}
+    if OUT_PATH.exists() and not args.force:
+        try:
+            existing = json.loads(OUT_PATH.read_text())
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"  [warn] failed to read {OUT_PATH.name} ({e}); re-extracting all")
+            existing = {}
+
+    missing = [vid for vid in pool_ids if vid not in existing]
+    if not missing:
+        print(
+            f"All {len(pool_ids)} pool variant(s) already in "
+            f"{OUT_PATH.name}; nothing to do.  Pass --force to re-extract.",
+        )
+        return
+
+    print(
+        f"Pool has {len(pool_ids)} variant(s); "
+        f"{len(existing)} already extracted, {len(missing)} missing.",
+    )
+
     tax = json.loads(TAX_PATH.read_text())
     usd_index: dict[str, str] = {
         v["variant_id"]: v["usd_path"]
@@ -95,10 +139,10 @@ def main() -> None:
         if v.get("usd_path")
     }
 
-    out: dict[str, dict] = {}
+    out = dict(existing)  # carry forward existing entries
     suspect: list[str] = []
 
-    for vid in pool_ids:
+    for vid in missing:
         usd_rel = usd_index.get(vid)
         if not usd_rel:
             print(f"  [warn] {vid}: no usd_path in taxonomy")
@@ -140,11 +184,14 @@ def main() -> None:
         print(f"  {vid:30s} anchorpoint {ap_str}")
 
     OUT_PATH.write_text(json.dumps(out, indent=2))
-    print(f"\nWrote {len(out)} entries to {OUT_PATH}")
+    print(
+        f"\nWrote {len(out)} entries to {OUT_PATH} "
+        f"({len(missing)} newly extracted).",
+    )
     if suspect:
         print(
-            f"\n[review] {len(suspect)} asset(s) need hand-author override "
-            "(missing or degenerate anchorpoint):",
+            f"\n[review] {len(suspect)} newly-extracted asset(s) need "
+            "hand-author override (missing or degenerate anchorpoint):",
         )
         for vid in suspect:
             print(f"  - {vid}")
