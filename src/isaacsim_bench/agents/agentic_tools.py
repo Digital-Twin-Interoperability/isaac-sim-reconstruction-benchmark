@@ -628,16 +628,42 @@ def handle_list_components(args: dict, state: AgentState) -> ToolResult:
     return _ok("\n".join(lines))
 
 
+def _validate_item_id_for_add(
+    state: AgentState, item_id: str | None,
+) -> tuple[str | None, ToolResult | None]:
+    """Pre-validate an optional ``item_id`` before doing an add.
+
+    Returns ``(normalized_item_id, None)`` on success (or when item_id is
+    absent), or ``(None, ToolResult)`` to short-circuit with an error.  Done
+    upfront so a doomed add doesn't leave a stranded component before the
+    auto-match step fails.
+    """
+    if item_id is None or not str(item_id).strip():
+        return None, None
+    iid = str(item_id).strip()
+    if iid not in _inventory_index(state):
+        return None, _err(
+            f"item_id {iid!r} is not in the inventory. Existing items: "
+            f"{sorted(_inventory_index(state).keys())}",
+        )
+    return iid, None
+
+
 def handle_add_component(args: dict, state: AgentState) -> ToolResult:
     if (gate := _check_inventory_locked(state, "add a component")) is not None:
         return gate
-    if (gate := _check_edit_serialization(state, "added")) is not None:
-        return gate
+    # NOTE: add ops are intentionally exempt from the render-after-edit gate.
+    # The gate is for modify/align/remove where attribution of "did my change
+    # help?" matters per-step; adds with confident pose can batch and let the
+    # agent render once at the end.  See system prompt step 7.
     name = args.get("name", "").strip()
     asset_id = args.get("asset_id", "").strip()
     position = args.get("position")
     orientation = args.get("orientation_xyzw", [0.0, 0.0, 0.0, 1.0])
     confidence = float(args.get("confidence", 0.8))
+    item_id, err = _validate_item_id_for_add(state, args.get("item_id"))
+    if err is not None:
+        return err
 
     if not name:
         return _err("name is required and must be non-empty.")
@@ -679,10 +705,15 @@ def handle_add_component(args: dict, state: AgentState) -> ToolResult:
 
     state.prediction.components.append(comp)
     state.scene_modified_since_render = True
-    return _ok(
+
+    msg = (
         f"Added component {name!r} (asset={asset_id}). "
-        f"Scene now has {len(state.prediction.components)} components.",
+        f"Scene now has {len(state.prediction.components)} components."
     )
+    if item_id is not None:
+        _inventory_index(state)[item_id].matched_components.append(name)
+        msg += f"  Auto-matched to inventory item {item_id!r}."
+    return _ok(msg)
 
 
 def handle_modify_component(args: dict, state: AgentState) -> ToolResult:
@@ -1268,8 +1299,9 @@ def handle_add_aligned_component(args: dict, state: AgentState) -> ToolResult:
         state, "add an aligned component",
     )) is not None:
         return gate
-    if (gate := _check_edit_serialization(state, "added")) is not None:
-        return gate
+    # NOTE: like add_component, this is exempt from the render-after-edit gate.
+    # Anchor-based placement is geometrically determined — there's no
+    # attribution question to answer per-edit.
 
     name = args.get("name", "").strip()
     asset_id = args.get("asset_id", "").strip()
@@ -1279,6 +1311,9 @@ def handle_add_aligned_component(args: dict, state: AgentState) -> ToolResult:
     facing = args.get("facing", "same_frame")
     relation_type = args.get("relation_type", "attach").strip() or "attach"
     confidence = float(args.get("confidence", 0.8))
+    item_id, err = _validate_item_id_for_add(state, args.get("item_id"))
+    if err is not None:
+        return err
 
     if not name:
         return _err("name is required and must be non-empty.")
@@ -1344,13 +1379,17 @@ def handle_add_aligned_component(args: dict, state: AgentState) -> ToolResult:
 
     pos_str = [round(v, 4) for v in placeholder.translate]
     quat_str = [round(v, 4) for v in placeholder.orientation_xyzw]
-    return _ok(
+    msg = (
         f"Added {name!r} (asset={asset_id}) and aligned it: "
         f"{name!r}.{moving_anchor} -> {fixed_name!r}.{fixed_anchor} "
         f"(facing={facing}); {rel_msg} {fixed_name} --[{relation_type}]--> "
         f"{name}.  New {name} pose: translate={pos_str} orient_xyzw={quat_str}. "
-        f"Scene now has {len(state.prediction.components)} components.",
+        f"Scene now has {len(state.prediction.components)} components."
     )
+    if item_id is not None:
+        _inventory_index(state)[item_id].matched_components.append(name)
+        msg += f"  Auto-matched to inventory item {item_id!r}."
+    return _ok(msg)
 
 
 def handle_submit_prediction(args: dict, state: AgentState) -> ToolResult:
@@ -1716,7 +1755,11 @@ def default_tool_specs() -> list[ToolSpec]:
             name="add_component",
             description=(
                 "Place a new component in the scene.  asset_id must be in "
-                "the retrieval pool; names must be unique."
+                "the retrieval pool; names must be unique.  Pass `item_id` "
+                "to auto-match the new component to an inventory item in "
+                "the same call — preferred over add + separate mark_matched. "
+                "Adds do NOT require a render between consecutive adds; you "
+                "can batch placements and render once at the end."
             ),
             input_schema={
                 "type": "object",
@@ -1726,6 +1769,17 @@ def default_tool_specs() -> list[ToolSpec]:
                     "position": _POSITION_SCHEMA,
                     "orientation_xyzw": _ORIENT_SCHEMA,
                     "confidence": {"type": "number", "default": 0.8},
+                    "item_id": {
+                        "type": "string",
+                        "description": (
+                            "Optional inventory item_id.  When provided, "
+                            "the new component is mark_matched to this "
+                            "item atomically.  Saves one tool call per "
+                            "placement.  Must already exist in the "
+                            "inventory (use add_inventory_item first if "
+                            "you discovered an extra item)."
+                        ),
+                    },
                 },
                 "required": ["name", "asset_id", "position"],
             },
@@ -1810,8 +1864,10 @@ def default_tool_specs() -> list[ToolSpec]:
                 "assets — you don't have to invent a placeholder pose just "
                 "to call align afterward.  Direction: fixed --[type]--> new "
                 "with from_anchor=fixed_anchor, to_anchor=moving_anchor.  "
-                "Counts as one edit, must be followed by render before the "
-                "next edit."
+                "Adds do NOT require a render between consecutive adds — "
+                "batch a chain of pieces and render once at the end.  Pass "
+                "`item_id` to also auto-match the new component to an "
+                "inventory item in the same call."
             ),
             input_schema={
                 "type": "object",
@@ -1831,6 +1887,15 @@ def default_tool_specs() -> list[ToolSpec]:
                         "default": "attach",
                     },
                     "confidence": {"type": "number", "default": 0.8},
+                    "item_id": {
+                        "type": "string",
+                        "description": (
+                            "Optional inventory item_id.  When provided, "
+                            "the new component is mark_matched to this "
+                            "item atomically.  Saves one tool call per "
+                            "placement."
+                        ),
+                    },
                 },
                 "required": [
                     "name", "asset_id", "fixed_component",

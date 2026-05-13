@@ -368,6 +368,78 @@ class TestInventoryTools:
         assert "set_inventory" in r.text.lower()
 
 
+class TestAddWithItemId:
+    """add_component / add_aligned_component accept an optional item_id that
+    auto-marks the new component, collapsing add + mark into one tool call."""
+
+    def test_add_component_auto_matches(self, state):
+        r = handle_add_component({
+            "name": "c", "asset_id": "ConveyorBelt_A01",
+            "position": [0, 0, 0],
+            "item_id": "placeholder_1",
+        }, state)
+        assert not r.is_error, r.text
+        assert "Auto-matched" in r.text
+        item = next(i for i in state.inventory if i.item_id == "placeholder_1")
+        assert item.matched_components == ["c"]
+
+    def test_add_component_rejects_unknown_item_id(self, state):
+        r = handle_add_component({
+            "name": "c", "asset_id": "ConveyorBelt_A01",
+            "position": [0, 0, 0],
+            "item_id": "ghost_item",
+        }, state)
+        assert r.is_error
+        assert "ghost_item" in r.text
+        # And the component should NOT have been added — pre-validation.
+        assert state.prediction.components == []
+
+    def test_add_component_without_item_id_unchanged(self, state):
+        r = handle_add_component({
+            "name": "c", "asset_id": "ConveyorBelt_A01",
+            "position": [0, 0, 0],
+        }, state)
+        assert not r.is_error
+        assert "Auto-matched" not in r.text
+        item = next(i for i in state.inventory if i.item_id == "placeholder_1")
+        assert item.matched_components == []
+
+    def test_add_aligned_component_auto_matches(self, state_with_anchors):
+        handle_add_component({
+            "name": "fixed", "asset_id": "ConveyorBelt_A01",
+            "position": [0, 0, 0],
+        }, state_with_anchors)
+        r = handle_add_aligned_component({
+            "name": "next", "asset_id": "ConveyorBelt_A01",
+            "fixed_component": "fixed", "fixed_anchor": "out",
+            "moving_anchor": "in",
+            "item_id": "placeholder_2",
+        }, state_with_anchors)
+        assert not r.is_error, r.text
+        assert "Auto-matched" in r.text
+        item = next(
+            i for i in state_with_anchors.inventory
+            if i.item_id == "placeholder_2"
+        )
+        assert item.matched_components == ["next"]
+
+    def test_add_aligned_component_rejects_unknown_item_id(self, state_with_anchors):
+        handle_add_component({
+            "name": "fixed", "asset_id": "ConveyorBelt_A01",
+            "position": [0, 0, 0],
+        }, state_with_anchors)
+        r = handle_add_aligned_component({
+            "name": "next", "asset_id": "ConveyorBelt_A01",
+            "fixed_component": "fixed", "fixed_anchor": "out",
+            "moving_anchor": "in",
+            "item_id": "ghost_item",
+        }, state_with_anchors)
+        assert r.is_error
+        assert "ghost_item" in r.text
+        # Pre-validation: alignment was NOT applied.
+        assert len(state_with_anchors.prediction.components) == 1
+
+
 class TestInventoryStatusInListComponents:
     def test_status_appears_when_unlocked(self, state_unlocked):
         r = handle_list_components({}, state_unlocked)
@@ -874,7 +946,9 @@ class TestEditSerialization:
         assert not r.is_error
         assert len(state.prediction.components) == 2
 
-    def test_blocks_back_to_back_add(self, state):
+    def test_allows_back_to_back_add(self, state):
+        # Adds are intentionally exempt from the render-after-edit gate so
+        # the agent can batch placements (one turn per item instead of three).
         self._enable_render_gate(state)
         handle_add_component({
             "name": "a", "asset_id": "ConveyorBelt_A01", "position": [0, 0, 0],
@@ -882,10 +956,8 @@ class TestEditSerialization:
         r = handle_add_component({
             "name": "b", "asset_id": "ConveyorBelt_A02", "position": [1, 0, 0],
         }, state)
-        assert r.is_error
-        assert "render" in r.text.lower()
-        # Second add should not have landed.
-        assert len(state.prediction.components) == 1
+        assert not r.is_error, r.text
+        assert len(state.prediction.components) == 2
 
     def test_blocks_back_to_back_modify(self, state):
         self._enable_render_gate(state)
@@ -1304,20 +1376,23 @@ class TestAddAlignedComponent:
         # Crucially: nothing should have been appended on the failure path.
         assert len(state_with_anchors.prediction.components) == 1
 
-    def test_obeys_edit_gate_when_renderer_present(self, state_with_anchors):
-        # Simulate a wired renderer to enable the gate.
+    def test_bypasses_edit_gate_when_renderer_present(self, state_with_anchors):
+        # add_aligned_component is intentionally exempt from the edit gate —
+        # anchor-based placement is geometrically deterministic, no
+        # per-edit attribution needed.  Gate still applies to modify/align.
         state_with_anchors.renderer = object()
         handle_add_component({
             "name": "fixed", "asset_id": "ConveyorBelt_A01",
             "position": [0, 0, 0],
         }, state_with_anchors)
-        # Don't clear the flag; gate must block.
+        # Don't clear the flag — should still succeed.
         r = handle_add_aligned_component({
             "name": "next", "asset_id": "ConveyorBelt_A01",
             "fixed_component": "fixed", "fixed_anchor": "out",
             "moving_anchor": "in",
         }, state_with_anchors)
-        assert r.is_error and "render" in r.text
+        assert not r.is_error, r.text
+        assert len(state_with_anchors.prediction.components) == 2
 
 
 class TestAnchorsInGetAssetInfo:
