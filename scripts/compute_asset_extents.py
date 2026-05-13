@@ -130,6 +130,22 @@ def main() -> None:
         usd_url = f"{NUCLEUS_ASSET_ROOT}{usd_rel}"
         print(f"  computing {vid} <- {usd_url}")
 
+        # Read the referenced asset's authored metersPerUnit so we can
+        # convert its bbox into meters.  USD references do NOT auto-scale
+        # across unit mismatches: an asset authored in cm (mpu=0.01)
+        # referenced into our mpu=1.0 stage yields a bbox in centimetres.
+        # Without this conversion the IsaacLab packing-table family came
+        # back as e.g. extent=[247, 76, 99] while CardBoxA was in m — the
+        # mixed units silently break agent placement reasoning.
+        try:
+            ref_stage = Usd.Stage.Open(usd_url)
+            mpu = UsdGeom.GetStageMetersPerUnit(ref_stage) if ref_stage else 1.0
+        except Exception as e:
+            print(f"    [warn] {vid}: could not read metersPerUnit ({e}); assuming 1.0")
+            mpu = 1.0
+        if mpu <= 0:
+            mpu = 1.0
+
         stage = Usd.Stage.CreateInMemory()
         UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
         UsdGeom.SetStageMetersPerUnit(stage, 1.0)
@@ -151,17 +167,20 @@ def main() -> None:
         bmin = rng.GetMin()
         bmax = rng.GetMax()
         size = bmax - bmin
+        # Multiply by the asset's native metersPerUnit to land in metres.
         entry = {
-            "extent_xyz": [round(float(size[0]), 4),
-                           round(float(size[1]), 4),
-                           round(float(size[2]), 4)],
-            "bbox_min": [round(float(bmin[0]), 4),
-                         round(float(bmin[1]), 4),
-                         round(float(bmin[2]), 4)],
-            "bbox_max": [round(float(bmax[0]), 4),
-                         round(float(bmax[1]), 4),
-                         round(float(bmax[2]), 4)],
+            "extent_xyz": [round(float(size[0]) * mpu, 4),
+                           round(float(size[1]) * mpu, 4),
+                           round(float(size[2]) * mpu, 4)],
+            "bbox_min": [round(float(bmin[0]) * mpu, 4),
+                         round(float(bmin[1]) * mpu, 4),
+                         round(float(bmin[2]) * mpu, 4)],
+            "bbox_max": [round(float(bmax[0]) * mpu, 4),
+                         round(float(bmax[1]) * mpu, 4),
+                         round(float(bmax[2]) * mpu, 4)],
         }
+        if mpu != 1.0:
+            print(f"    [info] asset mpu={mpu}, scaled bbox to metres")
         extents[vid] = entry
         print(
             f"    extent={entry['extent_xyz']} "
