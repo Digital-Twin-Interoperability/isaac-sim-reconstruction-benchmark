@@ -972,17 +972,36 @@ class TestEditSerialization:
         # Position should reflect the FIRST modify only.
         assert state.prediction.components[0].translate == [1.0, 0.0, 0.0]
 
-    def test_blocks_remove_after_modify(self, state):
+    def test_allows_remove_after_modify(self, state):
+        # Remove is exempt from the render-after-edit gate (like add) —
+        # a remove is a deterministic-intent action, not a "did this
+        # help?" adjustment.  Only modify / align retain the gate.
         self._enable_render_gate(state)
         handle_add_component({
             "name": "a", "asset_id": "ConveyorBelt_A01", "position": [0, 0, 0],
         }, state)
         state.scene_modified_since_render = False
         handle_modify_component({"name": "a", "position": [1, 0, 0]}, state)
+        # scene_modified_since_render is now True; remove should still go through.
         r = handle_remove_component({"name": "a"}, state)
-        assert r.is_error
-        # Component still present.
-        assert len(state.prediction.components) == 1
+        assert not r.is_error, r.text
+        assert len(state.prediction.components) == 0
+
+    def test_allows_back_to_back_remove(self, state):
+        # Batch removes (like the v5 packing-table wholesale-redo case)
+        # should all succeed without intervening renders.
+        self._enable_render_gate(state)
+        for i in range(3):
+            handle_add_component({
+                "name": f"c{i}",
+                "asset_id": "ConveyorBelt_A01",
+                "position": [float(i), 0, 0],
+            }, state)
+        state.scene_modified_since_render = False
+        for i in range(3):
+            r = handle_remove_component({"name": f"c{i}"}, state)
+            assert not r.is_error, f"remove c{i}: {r.text}"
+        assert state.prediction.components == []
 
     def test_render_clears_gate(self, state):
         self._enable_render_gate(state)

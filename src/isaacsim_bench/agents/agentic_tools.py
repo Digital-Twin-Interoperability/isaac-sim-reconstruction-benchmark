@@ -763,8 +763,12 @@ def handle_modify_component(args: dict, state: AgentState) -> ToolResult:
 
 
 def handle_remove_component(args: dict, state: AgentState) -> ToolResult:
-    if (gate := _check_edit_serialization(state, "removed")) is not None:
-        return gate
+    # NOTE: removes — like adds — are exempt from the render-after-edit
+    # gate.  A remove is a deterministic-intent action; per-step
+    # attribution ("did this delete help?") is not the question.  Modify
+    # and align still receive the gate (they're "did this change make
+    # things better?" style).  Submit still requires a clean
+    # render-after-edit before terminating.
     name = args.get("name", "").strip()
     idx_map = _component_index(state)
     if name not in idx_map:
