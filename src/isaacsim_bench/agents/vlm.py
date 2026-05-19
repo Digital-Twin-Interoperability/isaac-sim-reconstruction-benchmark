@@ -42,7 +42,12 @@ _PRIORITY_VIEWS = [
 ]
 
 _DEFAULT_MODELS = {
-    "openai": "gpt-5.4",
+    # gpt-5.4 stopped serving image+tools requests on this account in
+    # mid-May 2026 (reliable 500 from the backend, fast-fail < 1.2 s; the
+    # status page never reflected an incident).  gpt-5.5 covers the same
+    # capability surface and returns clean tool calls — switching as the
+    # default until gpt-5.4 is healthy again.
+    "openai": "gpt-5.5",
     "anthropic": "claude-sonnet-4-6",
 }
 

@@ -42,7 +42,7 @@ def main() -> None:
         default=None,
         help=(
             "VLM model name (default: auto-detect).  "
-            "Examples: gpt-5.4, gpt-4o, claude-sonnet-4-6"
+            "Examples: gpt-5.5, gpt-4.1, claude-sonnet-4-6"
         ),
     )
     parser.add_argument(
@@ -162,9 +162,18 @@ def main() -> None:
     print(f"\n  Prediction saved to {out_path}")
 
     usd_path = out_path.with_suffix(".usd")
-    from isaacsim_bench.agents.composer import ComposerAgent
-    ComposerAgent.export_usd(prediction, usd_path, taxonomy)
-    print(f"  USD exported to {usd_path}")
+    if prediction.components:
+        # ComposerAgent.export_usd imports pxr, which under /isaac-sim/python.sh
+        # only resolves once SimulationApp has booted (lazily, on the first
+        # render tool call).  If the loop crashed before any render — e.g.
+        # OpenAI 500 on turn 1 — pxr is not in sys.path and the export
+        # would crash.  An empty prediction has nothing to export anyway,
+        # so skip rather than raise.
+        from isaacsim_bench.agents.composer import ComposerAgent
+        ComposerAgent.export_usd(prediction, usd_path, taxonomy)
+        print(f"  USD exported to {usd_path}")
+    else:
+        print("  USD export skipped (prediction is empty).")
 
     # Now safe to tear down the renderer (agentic path only — pipeline
     # reconstructor doesn't have one to close).
